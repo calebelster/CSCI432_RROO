@@ -1,13 +1,13 @@
 @import "//cdn.jsdelivr.net/npm/font-kopub@1.0";
 
-
-body {
+/* Page-scoped container to center content without breaking global footer */
+.signup-page {
+    min-height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 40px 16px; /* breathing room */
     background-color: lightblue;
-    height: 100vh;
-    margin: 0;
     font-family: 'KoPub Batang', Arial, sans-serif;
 }
 
@@ -17,6 +17,7 @@ body {
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    position: relative;
 }
 
 h1 {
