@@ -6,6 +6,7 @@ import LandingPage from './LandingPage.jsx'
 import LoginPage from './Login.jsx'
 import SignUpPage from './SignUp.jsx'
 import Footer from './Footer.jsx'
+import HomePage from './HomePage.jsx'
 import './index.css'
 
 function App() {
@@ -15,7 +16,8 @@ function App() {
                 <div style={{ flex: 1 }}>
                     <Routes>
                         <Route path="/" element={<LandingPage />} />
-                        <Route path="/home" element={<LandingPage />} />
+                        <Route path="/landing" element={<LandingPage />} />
+                        <Route path="/home" element={<HomePage />} />
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/signup" element={<SignUpPage />} />
                         <Route path="*" element={<div>404 Not Found</div>} />

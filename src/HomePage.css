@@ -1,0 +1,448 @@
+@import url("https://cdn.jsdelivr.net/npm/font-kopub@1.0");
+
+:root {
+    --bg: #AED9E0;
+    --card: #5E6472;
+    --text: #FAF3DD;
+    --font: 'KoPub Batang', Arial, sans-serif;
+}
+
+/* Override body and card backgrounds */
+body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 0;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.container {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 0;
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 2rem;
+}
+
+.header-logo {
+    display: flex;
+    align-items: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.header-logo img {
+    height: 1.2em;
+    width: auto;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    font-size: 1.2rem;
+    font-weight: 500;
+    color: var(--text);
+}
+
+/* Welcome Section */
+.welcome {
+    margin-bottom: 2.5rem;
+}
+
+.welcome h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    color: var(--text);
+}
+
+.welcome h1 {
+    font-size: 3.2rem;
+    color: var(--text);
+    opacity: 0.9;
+    margin: 0;
+}
+
+/* Card Layout */
+.card-grid {
+    /* Horizontal flex row for stats. Items keep equal size and scroll when overflowing */
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 8px;
+}
+
+.card {
+    background-color: var(--card);
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 2.25rem;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.07);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    color: var(--text);
+    /* equal tile size that grows to fill available space but doesn't shrink below base */
+    flex: 1 0 420px;
+    /* grow:1, shrink:0, base:420px */
+    min-width: 360px;
+    max-width: 600px;
+    scroll-snap-align: center;
+}
+
+.card-header .title {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--text);
+    margin: 0;
+}
+
+.card-content h3 {
+    font-size: 3rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    color: var(--text);
+}
+
+.card-content p {
+    font-size: 1.05rem;
+    color: var(--text);
+    opacity: 0.9;
+    margin: 0;
+}
+
+/* Committees Section */
+.committees-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.committees-header h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text);
+}
+
+.create-button {
+    background-color: #000;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: var(--font);
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.create-button:hover {
+    background-color: #333333;
+}
+
+.committee-card-grid {
+    /* Horizontal scroller for committee cards; shows as many as fit, slider if overflow */
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 1.5rem;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 8px;
+}
+
+.committee-card {
+    background-color: var(--card);
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    color: var(--text);
+    /* slide-like consistent size */
+    flex: 1 0 520px;
+    min-width: 320px;
+    max-width: 760px;
+    scroll-snap-align: center;
+}
+
+.committee-header h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text);
+}
+
+.member-tag {
+    background-color: #e5e5e5;
+    color: #4a4a4a;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+}
+
+.committee-description {
+    font-size: 0.9rem;
+    color: var(--text);
+    opacity: 0.9;
+    margin: 0.5rem 0 1rem;
+    min-height: 40px;
+}
+
+.committee-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+}
+
+.date {
+    font-size: 0.85rem;
+    color: var(--text);
+    opacity: 0.8;
+}
+
+.enter-button {
+    background-color: #000;
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: var(--font);
+    transition: background-color 0.2s ease;
+}
+
+.enter-button:hover {
+    background-color: #333333;
+}
+
+/* Help Icon */
+.help-icon {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background-color: var(--card);
+    border: 1px solid #e0e0e0;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    color: var(--text);
+    font-size: 2rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.help-icon:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Modal styles (keep as is, but update font and colors if needed) */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: var(--card);
+    color: var(--text);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    font-family: var(--font);
+}
+
+.modal-header h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text);
+}
+
+.modal-header p {
+    font-size: 0.9rem;
+    color: var(--text);
+    opacity: 0.9;
+    margin: 0.25rem 0 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text);
+}
+
+.modal-form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+}
+
+.modal-form-group input,
+.modal-form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-family: var(--font);
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.modal-form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.modal-button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    font-weight: 500;
+    font-family: var(--font);
+    transition: background-color 0.2s ease;
+}
+
+.modal-button.cancel {
+    background-color: var(--card);
+    color: var(--text);
+    border: 1px solid #e0e0e0;
+}
+
+.modal-button.cancel:hover {
+    background-color: #6d7584;
+}
+
+.modal-button.create {
+    background-color: #000;
+    color: #fff;
+    border: none;
+}
+
+.modal-button.create:hover {
+    background-color: #333333;
+}
+
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .user-info {
+        margin-top: 1rem;
+    }
+
+    .welcome p {
+        font-size: 1.15rem;
+    }
+
+    .committees-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .create-button {
+        width: 100%;
+        justify-content: center;
+        margin-top: 1rem;
+    }
+
+    /* On narrow screens, make sure cards take full width */
+    .card,
+    .committee-card {
+        flex: 1 1 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+}
+
+/* Large-screen layout: force 3 stats per row and 2 committee cards per row */
+@media (min-width: 1100px) {
+    .container {
+        padding-left: 4rem;
+        padding-right: 4rem;
+    }
+
+    .card-grid {
+        justify-content: space-between;
+    }
+
+    .card {
+        /* exactly three columns with gaps of 1.5rem between */
+        flex: 0 0 calc((100% - 3rem) / 3);
+        max-width: calc((100% - 3rem) / 3);
+    }
+
+    .committee-card-grid {
+        justify-content: space-between;
+    }
+
+    .committee-card {
+        /* two equal columns for committee cards */
+        flex: 0 0 calc((100% - 1.5rem) / 2);
+        max-width: calc((100% - 1.5rem) / 2);
+    }
+}
