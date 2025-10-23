@@ -11,24 +11,26 @@
   box-sizing: border-box;
 }
 
-body {
-  font-family: var(--font);
-  background: var(--bg);
-  height: 100vh;
-  margin: 0;
+/* Use a page-scoped container to center content to avoid conflicts with #app flex layout */
+.login-page {
+  min-height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 40px 16px; /* some breathing room on small screens */
+  background: var(--bg);
+  font-family: var(--font);
 }
 
 .back-link {
-  position: absolute;
-  left: 40px;
-  top: 40px;
+  position: fixed; /* anchor to viewport */
+  left: 24px;
+  top: 24px;
   color: #000;
   text-decoration: none;
   font-size: 1rem;
   font-weight: bold;
+  z-index: 10; /* keep above card */
 }
 
 .login-box {
@@ -40,6 +42,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative; /* ensure absolutely positioned back-link anchors to the card */
 }
 
 .login-title {

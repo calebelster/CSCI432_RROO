@@ -29,30 +29,32 @@ function LoginPage() {
 
     // 4. Return the HTML structure as JSX
     return (
-        <div className="login-box">
-            <Link to="/" className="back-link">&#8592; Back to Home</Link>
-            <div className="login-title">Log In</div>
-            <div className="login-subtitle">Enter your email and password</div>
-            <div className="login-content">
-                <div className="login-label">Email</div>
-                <input
-                    type="text"
-                    id="loginEmail"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                />
-                <div className="login-label">Password</div>
-                <input
-                    type="password"
-                    id="loginPassword"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
-                <div className="forgot"><a href="#">Forgot password?</a></div>
-                {/* 5. Call the handleLogin function on button click */}
-                <button onClick={handleLogin}>Log In</button>
-                <div className="signup">
-                    Don’t have an account? <Link to="/signup">Sign up</Link>
+        <div className="login-page">
+            <div className="login-box">
+                <Link to="/" className="back-link">&#8592; Back to Home</Link>
+                <div className="login-title">Log In</div>
+                <div className="login-subtitle">Enter your email and password</div>
+                <div className="login-content">
+                    <div className="login-label">Email</div>
+                    <input
+                        type="text"
+                        id="loginEmail"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                    />
+                    <div className="login-label">Password</div>
+                    <input
+                        type="password"
+                        id="loginPassword"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                    />
+                    <div className="forgot"><a href="#">Forgot password?</a></div>
+                    {/* 5. Call the handleLogin function on button click */}
+                    <button onClick={handleLogin}>Log In</button>
+                    <div className="signup">
+                        Don’t have an account? <Link to="/signup">Sign up</Link>
+                    </div>
                 </div>
             </div>
         </div>

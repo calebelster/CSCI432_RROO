@@ -46,7 +46,7 @@ function SignUpPage() {
     };
 
     return (
-        <>
+        <div className="signup-page">
             <div className="box">
                 <h1>Create Account</h1>
                 <p>Join to start managing your meets and committees</p>
@@ -74,9 +74,7 @@ function SignUpPage() {
                 <button className="button" onClick={handleCreateAccount}>
                     <p>Create Account</p>
                 </button>
-                <h2>Already have an account?
-                    <Link to="/login"> Log In</Link>
-                </h2>
+                <h2>Already have an account? <Link to="/login">Log In</Link></h2>
             </div>
 
             {/* 6. Conditionally render the modal */}
@@ -89,7 +87,7 @@ function SignUpPage() {
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 }
 
