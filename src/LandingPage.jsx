@@ -19,8 +19,8 @@ function LandingPage() {
                 </div>
             </nav>
             <main className="main-content">
-                <h1 className="main-title">Welcome to MySite</h1>
-                <p className="main-desc">Your gateway to awesome features. Join us or log in to get started!</p>
+                <h1 className="main-title">Modern Meetings</h1>
+                <p className="main-desc">Conduct effective, fair, and orderly meetings using digital tools built around Robert's Rules of Order. Perfect for committees, boards, and organizations.</p>
                 <div className="main-buttons">
                     <Link to="/login" className="main-btn">Log In</Link>
                     <Link to="/signup" className="main-btn">Sign Up</Link>

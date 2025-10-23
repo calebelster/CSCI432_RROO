@@ -63,7 +63,7 @@ body {
     padding: 2rem 2rem 2rem 2rem; /* top right bottom left */
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
-    max-width: 500px;
+    max-width: 750px;
     margin-left: auto;
     margin-right: auto;
 }
@@ -79,7 +79,7 @@ body {
     margin-bottom: 2rem;
     color: #555;
     text-align: center;
-    max-width: 500px;
+    max-width: 750px;
 }
 
 .main-buttons .main-btn {
