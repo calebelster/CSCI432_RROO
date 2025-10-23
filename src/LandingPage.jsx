@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import './landing.css';
-import gavelLogo from '../public/gavel_logo.png';
 
 // 2. Define the functional component
 function LandingPage() {
@@ -11,7 +10,7 @@ function LandingPage() {
         <>
             <nav className="navbar">
                 <div className="navbar-left">
-                    <img src={gavelLogo} alt="Logo" className="logo" />
+                    <img src="/gavel_logo.png" alt="Logo" className="logo" />
                     <span className="site-title">Robert Rules of Order</span>
                 </div>
                 <div className="navbar-right">
