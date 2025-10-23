@@ -1,0 +1,125 @@
+@import "//cdn.jsdelivr.net/npm/font-kopub@1.0";
+
+:root {
+  --bg: #AED9E0;
+  --card: #5E6472;
+  --text: #FAF3DD;
+  --font: 'KoPub Batang', Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  height: 100vh;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.back-link {
+  position: absolute;
+  left: 40px;
+  top: 40px;
+  color: #000;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.login-box {
+  width: 500px;
+  max-width: 92vw;
+  background: var(--card);
+  border-radius: 16px;
+  padding: 28px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-title {
+  font-size: 2rem;
+  color: var(--text);
+  font-weight: 700;
+  margin: 0;
+}
+
+.login-subtitle {
+  color: var(--text);
+  opacity: .9;
+  font-size: .95rem;
+  font-weight: 300;
+  margin: 0 0 10px 0;
+}
+
+.login-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.login-label {
+  color: var(--text);
+  font-size: .95rem;
+  font-weight: 500;
+  padding: .5rem 0 .5rem 0;
+  /*top right bottom left*/
+}
+
+.login-box input {
+  width: 100%;
+  height: 40px;
+  padding: 10px 12px;
+  border: 1px solid #d1d9e0;
+  border-radius: 8px;
+  font-size: 16px;
+  background: #fff;
+  outline: none;
+}
+
+.login-box input:focus {
+  border-color: #c3cad3;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .15);
+}
+
+.forgot {
+  color: var(--text);
+  font-size: .9rem;
+  text-decoration: underline;
+  font-weight: 400;
+  margin: 4px 0 8px;
+}
+
+.login-box button {
+  width: 100%;
+  height: 40px;
+  padding: 10px 12px;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  font-family: var(--font);
+}
+
+.signup {
+  width: 100%;
+  text-align: center;
+  color: var(--text);
+  margin-top: 12px;
+  font-size: .95rem;
+  font-weight: 300;
+}
+
+.login-signup a {
+  color: var(--text);
+  text-decoration: underline;
+  font-weight: 600;
+}
