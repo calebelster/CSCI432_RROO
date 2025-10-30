@@ -62,7 +62,8 @@ function HomePage() {
 
     function enterCommittee(committee) {
         const committeeName = encodeURIComponent(committee.name);
-        window.location.href = `../committee/committee.html?name=${committeeName}`;
+        // navigate to the React Committee route with query param
+        navigate(`/committee?name=${committeeName}`);
     }
 
     return (

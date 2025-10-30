@@ -7,6 +7,8 @@ import LoginPage from './Login.jsx'
 import SignUpPage from './SignUp.jsx'
 import Footer from './Footer.jsx'
 import HomePage from './HomePage.jsx'
+import Committee from './Committee.jsx'
+
 import './index.css'
 
 function App() {
@@ -18,6 +20,7 @@ function App() {
                         <Route path="/" element={<LandingPage />} />
                         <Route path="/landing" element={<LandingPage />} />
                         <Route path="/home" element={<HomePage />} />
+                        <Route path="/committee" element={<Committee />} />
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/signup" element={<SignUpPage />} />
                         <Route path="*" element={<div>404 Not Found</div>} />
