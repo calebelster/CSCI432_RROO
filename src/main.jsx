@@ -9,7 +9,7 @@ import Footer from './Footer.jsx'
 import HomePage from './HomePage.jsx'
 import Committee from './Committee.jsx'
 
-import './index.css'
+import './globals.css'
 
 function App() {
     return (

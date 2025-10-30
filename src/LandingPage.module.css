@@ -1,0 +1,71 @@
+.navbar {
+    @apply flex justify-between items-center bg-blue-900 text-white px-6 py-4 shadow;
+}
+
+.navbarLogo {
+    @apply flex items-center;
+}
+
+.logo {
+    @apply h-10 mr-3 filter invert;
+}
+
+.siteTitle {
+    @apply text-xl font-semibold;
+}
+
+.navBtnPrimary {
+    @apply bg-blue-700 text-white px-4 py-2 rounded shadow hover:bg-blue-800 transition;
+}
+
+.navBtnSecondary {
+    @apply bg-white text-blue-900 px-4 py-2 mr-3 rounded shadow hover:bg-gray-200 transition;
+}
+
+.mainContainer {
+    @apply min-h-screen bg-blue-50 flex flex-col;
+}
+
+.heroMain {
+    @apply flex flex-col items-center justify-center flex-1 py-16;
+}
+
+.title {
+    @apply text-4xl font-bold mb-4 text-blue-900;
+}
+
+.description {
+    @apply text-lg text-blue-700 text-center max-w-3xl mb-10;
+}
+
+.heroButtons {
+    @apply flex space-x-4 mb-12;
+}
+
+.heroBtnPrimary {
+    @apply bg-blue-700 text-white px-6 py-3 rounded font-medium shadow hover:bg-blue-800 transition;
+}
+
+.heroBtnSecondary {
+    @apply bg-white text-blue-900 px-6 py-3 rounded font-medium border shadow hover:bg-gray-100 transition;
+}
+
+.infoGrid {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-5xl mt-4;
+}
+
+.infoBox {
+    @apply bg-white rounded-lg shadow p-6;
+}
+
+.infoBoxTitle {
+    @apply text-xl font-semibold mb-2 text-blue-800;
+}
+
+.infoBoxText {
+    @apply text-gray-700;
+}
+
+.footer {
+    @apply bg-blue-900 text-white text-center py-4;
+}

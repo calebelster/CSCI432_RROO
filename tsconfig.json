@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "nodenext",
+    "module": "ESNext",
+    "target": "ESNext",
+    "jsx": "react",
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "include": [                 // if your source files are here
+      "src/**/*"
+    ]
+  }
+}
