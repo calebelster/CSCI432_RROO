@@ -15,17 +15,33 @@ const SignUpPage = () => {
     const [isRegistering, setIsRegistering] = useState(false);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [error, setError] = useState('');
+    const [errorCode, setErrorCode] = useState('');
+    const [triedSubmit, setTriedSubmit] = useState(false);
 
     const handleCreateAccount = async (e) => {
         e && e.preventDefault();
+        // mark that the user attempted to submit so we can show submit-time hints
+        setTriedSubmit(true);
         setError('');
+        setErrorCode('');
 
         if (!fullName || !email || !password || !confirmPassword) {
             setError('Please fill in all fields.');
+            setErrorCode('');
             return;
         }
+
+        // Priority: password length first
+        if (password.length < 6) {
+            setError('Password should be at least 6 characters.');
+            setErrorCode('auth/weak-password');
+            return;
+        }
+
+        // Then check for mismatch
         if (password !== confirmPassword) {
-            setError('Passwords do not match.');
+            setError("Those passwords didn't match. Try again.");
+            setErrorCode('mismatch');
             return;
         }
 
@@ -46,7 +62,10 @@ const SignUpPage = () => {
             setIsModalVisible(true);
         } catch (err) {
             console.error(err);
+            // store both the display message and the firebase error code so we can
+            // show field-specific hints (e.g. weak-password) in the form
             setError(err.message || 'Failed to create account');
+            setErrorCode(err.code || '');
         } finally {
             setIsRegistering(false);
         }
@@ -63,7 +82,7 @@ const SignUpPage = () => {
                 <h1>Create Account</h1>
                 <p>Join to start managing your meets and committees</p>
 
-                {error && <div className="error">{error}</div>}
+                {error && !['auth/weak-password', 'mismatch'].includes(errorCode) && <div className="error">{error}</div>}
 
                 <form className="signup-form" onSubmit={handleCreateAccount}>
                     <div className="form-group">
@@ -84,6 +103,9 @@ const SignUpPage = () => {
                     <div className="form-group">
                         <label htmlFor="confirmPassword">Confirm Password</label>
                         <input type="password" id="confirmPassword" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                        {triedSubmit && (['auth/weak-password', 'mismatch'].includes(errorCode) || (password.length < 6 && triedSubmit)) && (
+                            <div className="hint">{errorCode === 'auth/weak-password' ? (error || 'Password should be at least 6 characters.') : (errorCode === 'mismatch' ? (error || "Those passwords didn't match. Try again.") : (password.length < 6 ? 'Password should be at least 6 characters.' : ''))}</div>
+                        )}
                     </div>
 
                     <button className="button" type="submit" disabled={isRegistering}>
