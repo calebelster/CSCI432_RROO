@@ -1,40 +1,56 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import './LoginPage.css'; 
+import './LoginPage.css';
+import { doSignInWithEmailAndPassword } from './firebase/auth';
 
-function LoginPage() {
-    // 2. Use state to manage form inputs
+const LoginPage = () => {
+    const navigate = useNavigate();
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const navigate = useNavigate(); // Hook for navigation
+    const [isSigningIn, setIsSigningIn] = useState(false);
+    const [error, setError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
 
-    const handleLogin = () => {
-        // Basic validation
+    const handleLogin = async (e) => {
+        e && e.preventDefault();
+        setError('');
         if (!email || !password) {
-            alert('Please enter both email and password.');
+                setError('Please enter both email and password.');
             return;
         }
 
-        const users = JSON.parse(localStorage.getItem('users')) || [];
-        const user = users.find(u => u.email === email && u.password === password);
-
-        if (user) {
-            // Success! Save user and redirect.
-            localStorage.setItem('currentUser', JSON.stringify(user));
-            navigate('/home'); // Redirect to the main app page
-        } else {
-            alert('Invalid email or password.');
+        if (isSigningIn) return;
+        setIsSigningIn(true);
+        // clear previous errors
+        setError('');
+        setPasswordError('');
+        try {
+            await doSignInWithEmailAndPassword(email, password);
+            // On success, navigate to home (or desired route)
+            navigate('/home');
+        } catch (err) {
+            console.error(err);
+            const code = err.code || '';
+            // For any Firebase auth error, show a friendly message under the password input
+            if (code.startsWith('auth/')) {
+                setPasswordError('Cannot find account');
+            } else {
+                setError(err.message || 'Failed to sign in');
+            }
+        } finally {
+            setIsSigningIn(false);
         }
     };
 
-    // 4. Return the HTML structure as JSX
     return (
         <div className="login-page">
             <div className="login-box">
                 <Link to="/" className="back-link">&#8592; Back to Home</Link>
                 <div className="login-title">Log In</div>
                 <div className="login-subtitle">Enter your email and password</div>
-                <div className="login-content">
+
+                <form className="login-content" onSubmit={handleLogin}>
                     <div className="login-label">Email</div>
                     <input
                         type="text"
@@ -49,13 +65,19 @@ function LoginPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                     />
+                    {(passwordError || error) && (
+                        <div className="error" style={{ marginTop: '6px' }}>
+                            {passwordError || error}
+                        </div>
+                    )}
                     <div className="forgot"><a href="#">Forgot password?</a></div>
-                    {/* 5. Call the handleLogin function on button click */}
-                    <button onClick={handleLogin}>Log In</button>
+
+                    <button type="submit" disabled={isSigningIn}>{isSigningIn ? 'Signing in...' : 'Log In'}</button>
+
                     <div className="signup">
                         Don’t have an account? <Link to="/signup">Sign up</Link>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
     );

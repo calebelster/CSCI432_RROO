@@ -1,49 +1,80 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import './SignUp.css'; // 1. Import your new CSS file
+import './SignUp.css';
+import { doCreateUserWithEmailAndPassword, doSendEmailVerification } from './firebase/auth';
+import { auth } from './firebase/firebase';
+import { updateProfile } from 'firebase/auth';
 
-function SignUpPage() {
-    // 2. State for form inputs and modal visibility
+const SignUpPage = () => {
+    const navigate = useNavigate();
+
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [isRegistering, setIsRegistering] = useState(false);
     const [isModalVisible, setIsModalVisible] = useState(false);
-    
-    const navigate = useNavigate();
+    const [error, setError] = useState('');
+    const [errorCode, setErrorCode] = useState('');
+    const [triedSubmit, setTriedSubmit] = useState(false);
 
-    // 3. Logic for handling account creation
-    const handleCreateAccount = () => {
-        // Basic validation
+    const handleCreateAccount = async (e) => {
+        e && e.preventDefault();
+        // mark that the user attempted to submit so we can show submit-time hints
+        setTriedSubmit(true);
+        setError('');
+        setErrorCode('');
+
         if (!fullName || !email || !password || !confirmPassword) {
-            alert('Please fill in all fields.');
+            setError('Please fill in all fields.');
+            setErrorCode('');
             return;
         }
+
+        // Priority: password length first
+        if (password.length < 6) {
+            setError('Password should be at least 6 characters.');
+            setErrorCode('auth/weak-password');
+            return;
+        }
+
+        // Then check for mismatch
         if (password !== confirmPassword) {
-            alert('Passwords do not match.');
+            setError("Those passwords didn't match. Try again.");
+            setErrorCode('mismatch');
             return;
         }
 
-        const users = JSON.parse(localStorage.getItem('users')) || [];
-        if (users.some(user => user.email === email)) {
-            alert('An account with this email already exists.');
-            return;
+        if (isRegistering) return;
+        setIsRegistering(true);
+        try {
+            const userCredential = await doCreateUserWithEmailAndPassword(email, password);
+            // set display name
+            try {
+                await updateProfile(userCredential.user, { displayName: fullName });
+            } catch (e) {
+                // non-fatal
+                console.warn('updateProfile failed', e);
+            }
+            // optional: send email verification if helper exists
+            try { await doSendEmailVerification(); } catch (e) { /* ignore */ }
+
+            setIsModalVisible(true);
+        } catch (err) {
+            console.error(err);
+            // store both the display message and the firebase error code so we can
+            // show field-specific hints (e.g. weak-password) in the form
+            setError(err.message || 'Failed to create account');
+            setErrorCode(err.code || '');
+        } finally {
+            setIsRegistering(false);
         }
-
-        // Create and save the new user
-        const newUser = { fullName, email, password };
-        users.push(newUser);
-        localStorage.setItem('users', JSON.stringify(users));
-
-        // 4. Show the modal instead of alerting
-        setIsModalVisible(true);
     };
 
-    // 5. Logic to close the modal and redirect
     const handleCloseModal = () => {
         setIsModalVisible(false);
-        navigate('/login'); // Redirect to login page
-    };
+        navigate('/login');
+    }
 
     return (
         <div className="signup-page">
@@ -51,33 +82,40 @@ function SignUpPage() {
                 <h1>Create Account</h1>
                 <p>Join to start managing your meets and committees</p>
 
-                <div className="form-group">
-                    <label htmlFor="fullName">Full Name</label>
-                    <input type="text" id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} />
-                </div>
+                {error && !['auth/weak-password', 'mismatch'].includes(errorCode) && <div className="error">{error}</div>}
 
-                <div className="form-group">
-                    <label htmlFor="email">Email Address</label>
-                    <input type="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
+                <form className="signup-form" onSubmit={handleCreateAccount}>
+                    <div className="form-group">
+                        <label htmlFor="fullName">Full Name</label>
+                        <input type="text" id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                    </div>
 
-                <div className="form-group">
-                    <label htmlFor="password">Password</label>
-                    <input type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                
-                <div className="form-group">
-                    <label htmlFor="confirmPassword">Confirm Password</label>
-                    <input type="password" id="confirmPassword" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-                </div>
+                    <div className="form-group">
+                        <label htmlFor="email">Email Address</label>
+                        <input type="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                    </div>
 
-                <button className="button" onClick={handleCreateAccount}>
-                    <p>Create Account</p>
-                </button>
+                    <div className="form-group">
+                        <label htmlFor="password">Password</label>
+                        <input type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="confirmPassword">Confirm Password</label>
+                        <input type="password" id="confirmPassword" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                        {triedSubmit && (['auth/weak-password', 'mismatch'].includes(errorCode) || (password.length < 6 && triedSubmit)) && (
+                            <div className="hint">{errorCode === 'auth/weak-password' ? (error || 'Password should be at least 6 characters.') : (errorCode === 'mismatch' ? (error || "Those passwords didn't match. Try again.") : (password.length < 6 ? 'Password should be at least 6 characters.' : ''))}</div>
+                        )}
+                    </div>
+
+                    <button className="button" type="submit" disabled={isRegistering}>
+                        {isRegistering ? 'Creating...' : 'Create Account'}
+                    </button>
+                </form>
+
                 <h2>Already have an account? <Link to="/login">Log In</Link></h2>
             </div>
 
-            {/* 6. Conditionally render the modal */}
             {isModalVisible && (
                 <div id="successModal" className="modal">
                     <div className="modal-content">
