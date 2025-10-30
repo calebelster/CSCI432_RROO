@@ -10,24 +10,34 @@ const LoginPage = () => {
     const [password, setPassword] = useState('');
     const [isSigningIn, setIsSigningIn] = useState(false);
     const [error, setError] = useState('');
+    const [passwordError, setPasswordError] = useState('');
 
     const handleLogin = async (e) => {
         e && e.preventDefault();
         setError('');
         if (!email || !password) {
-            setError('Please enter both email and password.');
+                setError('Please enter both email and password.');
             return;
         }
 
         if (isSigningIn) return;
         setIsSigningIn(true);
+        // clear previous errors
+        setError('');
+        setPasswordError('');
         try {
             await doSignInWithEmailAndPassword(email, password);
             // On success, navigate to home (or desired route)
             navigate('/home');
         } catch (err) {
             console.error(err);
-            setError(err.message || 'Failed to sign in');
+            const code = err.code || '';
+            // For any Firebase auth error, show a friendly message under the password input
+            if (code.startsWith('auth/')) {
+                setPasswordError('Cannot find account');
+            } else {
+                setError(err.message || 'Failed to sign in');
+            }
         } finally {
             setIsSigningIn(false);
         }
@@ -39,8 +49,6 @@ const LoginPage = () => {
                 <Link to="/" className="back-link">&#8592; Back to Home</Link>
                 <div className="login-title">Log In</div>
                 <div className="login-subtitle">Enter your email and password</div>
-
-                {error && <div className="error">{error}</div>}
 
                 <form className="login-content" onSubmit={handleLogin}>
                     <div className="login-label">Email</div>
@@ -57,6 +65,11 @@ const LoginPage = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                     />
+                    {(passwordError || error) && (
+                        <div className="error" style={{ marginTop: '6px' }}>
+                            {passwordError || error}
+                        </div>
+                    )}
                     <div className="forgot"><a href="#">Forgot password?</a></div>
 
                     <button type="submit" disabled={isSigningIn}>{isSigningIn ? 'Signing in...' : 'Log In'}</button>
