@@ -5,25 +5,44 @@ import gavelLogo from '../public/gavel_logo.png';
 
 function HomePage() {
     const navigate = useNavigate();
-    const [homeData, setHomeData] = useState(() => ({
-        profile: { name: 'Profile Name' },
-        stats: [
-            { title: 'Your Committees', value: 2, description: "Active committees you're part of" },
-            { title: 'Pending Motions', value: 3, description: "Motions requiring your attention" },
-            { title: 'Upcoming Meetings', value: 1, description: 'Scheduled for this week' }
-        ],
-        committees: [
-            { name: 'Board of Directors', description: 'Monthly board meeting for strategic decisions', date: 'Created 1/14/2024', role: 'Member' },
-            { name: 'Budget Committee', description: 'Quarterly budget review and approval', date: 'Created 1/31/2024', role: 'Member' }
-        ],
-        committeeData: {
-            'Board of directors': { members: ['User Initial'], motions: [], meetings: [] },
-            'Budget Committee': { members: ['User Initial'], motions: [], meetings: [] }
+    const [homeData, setHomeData] = useState(() => {
+        // load persisted homeData so created committees persist across reloads
+        try {
+            const raw = localStorage.getItem('homeData');
+            if (raw) return JSON.parse(raw);
+        } catch (e) {
+            // ignore
         }
-    }));
+        return {
+            profile: { name: 'Profile Name' },
+            stats: [
+                { title: 'Your Committees', value: 2, description: "Active committees you're part of" },
+                { title: 'Pending Motions', value: 3, description: "Motions requiring your attention" },
+                { title: 'Upcoming Meetings', value: 1, description: 'Scheduled for this week' }
+            ],
+            committees: [
+                { name: 'Board of Directors', description: 'Monthly board meeting for strategic decisions', date: 'Created 1/14/2024', role: 'Member' },
+                { name: 'Budget Committee', description: 'Quarterly budget review and approval', date: 'Created 1/31/2024', role: 'Member' }
+            ],
+            committeeData: {
+                'Board of directors': { members: ['User Initial'], motions: [], meetings: [] },
+                'Budget Committee': { members: ['User Initial'], motions: [], meetings: [] }
+            }
+        };
+    });
 
     const [modalOpen, setModalOpen] = useState(false);
     const [newCommittee, setNewCommittee] = useState({ name: '', description: '' });
+    const [modalError, setModalError] = useState('');
+
+    // persist homeData to localStorage whenever it changes
+    useEffect(() => {
+        try {
+            localStorage.setItem('homeData', JSON.stringify(homeData));
+        } catch (e) {
+            // ignore
+        }
+    }, [homeData]);
 
     useEffect(() => {
         const currentUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -39,17 +58,31 @@ function HomePage() {
         setModalOpen(true);
     }
 
+    // focus the name input when modal opens
+    useEffect(() => {
+        if (modalOpen) {
+            const el = document.getElementById('committee-name');
+            if (el) el.focus();
+        }
+    }, [modalOpen]);
+
     function handleCreateCancel() {
         setModalOpen(false);
         setNewCommittee({ name: '', description: '' });
+        setModalError('');
     }
 
     function handleCreateCommittee() {
         const name = newCommittee.name.trim();
         const description = newCommittee.description.trim();
-        if (!name || !description) return;
+        if (!name || !description) {
+            setModalError('Please enter both a name and description.');
+            return;
+        }
+        setModalError('');
         setHomeData(prev => {
-            const committees = [...prev.committees, { name, description, date: `Created ${new Date().toLocaleDateString()}`, role: 'Member' }];
+            // prepend the newly created committee so it appears first
+            const committees = [{ name, description, date: `Created ${new Date().toLocaleDateString()}`, role: 'Member' }, ...prev.committees];
             const committeeData = { ...prev.committeeData };
             if (!committeeData[name]) committeeData[name] = { members: [prev.profile.name], motions: [], meetings: [] };
             const stats = [...prev.stats];
@@ -58,6 +91,11 @@ function HomePage() {
         });
         setModalOpen(false);
         setNewCommittee({ name: '', description: '' });
+        // scroll the committees container to show the newest card
+        setTimeout(() => {
+            const container = document.querySelector('.committee-card-grid');
+            if (container) container.scrollTo({ left: 0, behavior: 'smooth' });
+        }, 80);
     }
 
     function enterCommittee(committee) {
@@ -138,10 +176,11 @@ function HomePage() {
                                 <label htmlFor="committee-description">Description</label>
                                 <textarea id="committee-description" value={newCommittee.description} onChange={e => setNewCommittee(prev => ({ ...prev, description: e.target.value }))} />
                             </div>
+                            {modalError && <div className="modal-error" style={{ color: 'red', marginTop: 8 }}>{modalError}</div>}
                         </div>
                         <div className="modal-buttons">
-                            <button className="modal-button cancel" onClick={handleCreateCancel}>Cancel</button>
-                            <button className="modal-button create" onClick={handleCreateCommittee}>Create Committee</button>
+                            <button type="button" className="modal-button cancel" onClick={handleCreateCancel}>Cancel</button>
+                            <button type="button" className="modal-button create" onClick={handleCreateCommittee}>Create Committee</button>
                         </div>
                     </div>
                 </div>
