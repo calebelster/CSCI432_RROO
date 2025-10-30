@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './SignUp.css';
 import { doCreateUserWithEmailAndPassword, doSendEmailVerification } from './firebase/auth';
+import { db } from './firebase/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import { auth } from './firebase/firebase';
 import { updateProfile } from 'firebase/auth';
 
@@ -49,9 +51,11 @@ const SignUpPage = () => {
         setIsRegistering(true);
         try {
             const userCredential = await doCreateUserWithEmailAndPassword(email, password);
+            const user = userCredential.user;
+            
             // set display name
             try {
-                await updateProfile(userCredential.user, { displayName: fullName });
+                await updateProfile(user, { displayName: fullName });
             } catch (e) {
                 // non-fatal
                 console.warn('updateProfile failed', e);
