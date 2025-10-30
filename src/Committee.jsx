@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import './Committee.css';
 
 // Committee React component converted from static committee page
 export default function Committee() {
