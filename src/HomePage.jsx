@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './HomePage.css';
-import gavelLogo from '../public/gavel_logo.png';
 
-function HomePage() {
+
+function HomePage({currentUser}) {
     const navigate = useNavigate();
     const [homeData, setHomeData] = useState(() => ({
         profile: { name: 'Profile Name' },
@@ -26,14 +26,13 @@ function HomePage() {
     const [newCommittee, setNewCommittee] = useState({ name: '', description: '' });
 
     useEffect(() => {
-        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
         if (!currentUser) {
             navigate('/login');
             return;
         }
         // Optionally set profile name
-        setHomeData(prev => ({ ...prev, profile: { name: currentUser.fullName || prev.profile.name } }));
-    }, [navigate]);
+        setHomeData(prev => ({ ...prev, profile: { name: currentUser.displayName || currentUser.email || prev.profile.name } }));
+    }, [currentUser, navigate]);
 
     function handleCreateClick() {
         setModalOpen(true);
@@ -70,7 +69,7 @@ function HomePage() {
         <div className="container">
             <header className="header">
                 <div className="header-logo">
-                    <img src={gavelLogo} alt="logo" />
+                    <img src="/gavel_logo.png" alt="logo" />
                     <span>Robert Rules of Order</span>
                 </div>
                 <div className="user-info">{homeData.profile.name}</div>
