@@ -31,3 +31,9 @@ footer {
     margin-top: auto; /* push footer to bottom if flex container */
     box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
 }
+
+/* temporary highlight for focused motion when navigated via query param */
+.focused-motion {
+    box-shadow: 0 0 0 4px rgba(255, 223, 93, 0.18);
+    transition: box-shadow 0.25s ease;
+}

@@ -165,57 +165,56 @@ body {
 }
 
 .committee-card-grid {
-    /* Horizontal scroller for committee cards; shows as many as fit, slider if overflow */
+    /* Grid-like layout for committee cards. Show multiple cards per row and wrap to next line.
+       This matches the desktop layout (three cards per row) while remaining responsive. */
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 1.5rem;
-    justify-content: flex-start;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x mandatory;
+    justify-content: space-between;
+    align-items: stretch;
     padding-bottom: 8px;
 }
 
 .committee-card {
     background-color: var(--card);
-    border: 1px solid #e0e0e0;
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 14px;
+    padding: 2rem;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     color: var(--text);
-    /* slide-like consistent size */
-    flex: 1 0 520px;
-    min-width: 320px;
-    max-width: 760px;
-    scroll-snap-align: center;
+    /* make cards take roughly a third of the row on wide screens */
+    flex: 1 1 calc(33% - 1rem);
+    min-width: 280px;
+    max-width: 33%;
 }
 
 .committee-header h3 {
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
     color: var(--text);
+    letter-spacing: 0.2px;
 }
 
 .member-tag {
     background-color: #e5e5e5;
     color: #4a4a4a;
-    font-size: 0.75rem;
+    font-size: 0.85rem;
     font-weight: 500;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
+    padding: 0.35rem 0.9rem;
+    border-radius: 16px;
 }
 
 .committee-description {
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: var(--text);
-    opacity: 0.9;
-    margin: 0.5rem 0 1rem;
-    min-height: 40px;
+    opacity: 0.95;
+    margin: 0.5rem 0 1.25rem;
+    min-height: 48px;
 }
 
 .committee-footer {
@@ -235,13 +234,13 @@ body {
     background-color: #000;
     color: #fff;
     border: none;
-    padding: 0.5rem 1.25rem;
-    border-radius: 8px;
-    font-size: 0.9rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: 12px;
+    font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
     font-family: var(--font);
-    transition: background-color 0.2s ease;
+    transition: background-color 0.15s ease, transform 0.12s ease;
 }
 
 .enter-button:hover {

@@ -12,6 +12,7 @@ import SignUpPage from './SignUp.jsx'
 import Footer from './Footer.jsx'
 import HomePage from './HomePage.jsx'
 import Committee from './Committee.jsx'
+import Motions from './Motions.jsx'
 
 import './index.css'
 
@@ -32,10 +33,12 @@ function App() {
             <BrowserRouter>
                 <div style={{ flex: 1 }}>
                     <Routes>
+                        <Route path="/" element={<LandingPage />} />
                         <Route path="/" element={<LandingPage currentUser={currentUser} />} />
-                        <Route path="/landing" element={<LandingPage currentUser={currentUser}/>} />
-                        <Route path="/home" element={<HomePage currentUser={currentUser}/>} />
-                        <Route path="/committee" element={<Committee currentUser={currentUser}/>} />
+                        <Route path="/landing" element={<LandingPage currentUser={currentUser} />} />
+                        <Route path="/home" element={<HomePage currentUser={currentUser} />} />
+                        <Route path="/committee" element={<Committee currentUser={currentUser} />} />
+                        <Route path="/motions" element={<Motions currentUser={currentUser} />} />
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/signup" element={<SignUpPage />} />
                         <Route path="*" element={<div>404 Not Found</div>} />

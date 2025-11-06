@@ -52,7 +52,6 @@ const SignUpPage = () => {
         try {
             const userCredential = await doCreateUserWithEmailAndPassword(email, password);
             const user = userCredential.user;
-            
             // set display name
             try {
                 await updateProfile(user, { displayName: fullName });
