@@ -1,0 +1,76 @@
+@import "//cdn.jsdelivr.net/npm/font-kopub@1.0";
+
+:root {
+    --border-radius: 10px;
+    --background: #AED9E0;
+    --box-shadow: 2px 5px 10px rgba(0,0,0,0.3);
+}
+
+body {
+    margin: 0;
+    font-family: 'KoPub Batang', Arial, sans-serif;
+    background: var(--background);
+    padding: 20px;
+}
+
+/* page container for the React component */
+.motions-page {
+    padding: 24px;
+}
+
+h1 {
+    text-align: center;
+    color: #222;
+}
+
+.motion {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--box-shadow);
+}
+
+.motion h2 {
+    margin-top: 0;
+    color: #444;
+}
+
+.motion p {
+    color: #555;
+}
+
+.replies {
+    margin-top: 15px;
+    padding-left: 15px;
+    border-left: 3px solid #ccc;
+}
+
+.reply {
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+/* Reply form controls (scoped) */
+.reply-form { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+.reply-input {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+.reply-select {
+    padding: 8px;
+    border-radius: 6px;
+}
+.reply-button {
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: none;
+    background-color: #444;
+    color: #fff;
+}
+.reply-button:hover { background-color: #222; }
+
+.no-replies { color: #666; margin-bottom: 8px; }
