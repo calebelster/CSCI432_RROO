@@ -262,7 +262,7 @@ body {
 .modal-sub { color: #555; margin-bottom: 18px; }
 
 .motion-form .form-row { margin-bottom: 16px; }
-.form-label { font-weight: bold; display: block; margin-bottom: 4px; }
+.form-label { font-weight: bold; display: block; margin-bottom: 4px; color: #111;}
 .form-select, .form-input, .form-textarea { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #bfc3c9; }
 .form-textarea { min-height: 70px; }
 
@@ -277,7 +277,7 @@ body {
 .form-note { color: #888; display: block; margin-top: 6px; }
 .form-row-inline { display: flex; align-items: center; gap: 10px; }
 .form-checkbox { accent-color: #6c7280; }
-.form-label-inline { font-weight: bold; }
+.form-label-inline { font-weight: bold; color: #111;}
 .form-help { color: #888; font-size: 0.95em; }
 
 .committee-settings { margin-bottom: 18px; background: #e6f0f7; border-radius: 10px; padding: 14px; }
