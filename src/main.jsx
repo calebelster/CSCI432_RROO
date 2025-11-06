@@ -16,6 +16,8 @@ import Motions from './Motions.jsx'
 
 import './index.css'
 
+
+
 function App() {
     const [currentUser, setCurrentUser] = useState(null);
 
