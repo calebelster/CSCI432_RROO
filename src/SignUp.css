@@ -54,12 +54,15 @@ p {
 }
 
 .button {
+    font-family: KoPub Batang, Arial, sans-serif;
     width: 100%;
-    padding: 6px;
+    padding: 10px 12px;
     background-color: black;
     border: none;
     border-radius: 5px;
     cursor: pointer;
+    color: white;
+    font-size: 14px;
 }
 
 .button p {
