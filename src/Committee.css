@@ -142,40 +142,44 @@ button {
 }
 
 .motion-filters {
-	/* Keep filters attached to the motions area (left aligned) so they sit above the list.
-	   They should not be centered — only the main tabs are centered. */
-	display: flex;
+	/* Use a pill track like the main tab-bar but left-aligned within the motions area */
+	display: inline-flex;
 	gap: 8px;
 	margin: 12px 0 14px 0;
-	/* top/right/bottom/left */
 	justify-content: flex-start;
-	width: auto;
+	align-items: center;
+	background: var(--card);
+	padding: 6px;
+	border-radius: 999px;
+	border: 1px solid rgba(255, 255, 255, 0.04);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+	width: fit-content;
+	box-sizing: border-box;
 }
 
 .filter-btn {
-	/* non-active buttons should be a lighter color */
-	background: rgba(255, 255, 255, 0.03);
+	/* buttons sit on the track and the active one becomes the inner pill */
+	background: transparent;
 	color: var(--text);
-	border: 1px solid rgba(0, 0, 0, 0.04);
-	border-radius: 8px;
-	padding: 6px 12px;
+	border: none;
+	padding: 8px 14px;
 	cursor: pointer;
-	transition: box-shadow 150ms ease, transform 120ms ease;
+	border-radius: 999px;
+	font-size: 0.95rem;
+	transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
-/* keep non-selected buttons visually consistent (lighter appearance) */
-.filter-btn:not(.active) {
-	opacity: 1;
+.filter-btn:not(.active):hover {
+	/* subtle hover without inverting colors */
+	background: rgba(255, 255, 255, 0.02);
 }
 
-/* selected button: emphasized but colors stay consistent (no inversion) */
 .filter-btn.active {
-	background: var(--card);
-	color: var(--text);
+	/* inner pill for the selected option */
+	background: rgba(255, 255, 255, 0.95);
+	color: #111;
 	font-weight: 700;
-	border: 1px solid rgba(255, 255, 255, 0.10);
-	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
-	transform: translateY(-1px);
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
 .motion-card {

@@ -175,6 +175,11 @@ export default function Committee() {
     return true;
   });
 
+  // counts for filter badges
+  const allCount = (committeeData.motions || []).length;
+  const activeCount = (committeeData.motions || []).filter((m) => m.status === 'active').length;
+  const completedCount = (committeeData.motions || []).filter((m) => m.status === 'completed').length;
+
   function viewMotion(motion) {
     // store motion in sessionStorage and navigate to motions page
     try {
@@ -240,9 +245,30 @@ export default function Committee() {
           <div className="motions-section">
             <div className="motions-header">Motions</div>
             <div className="motion-filters">
-              <button className={`filter-btn ${motionFilter === 'all' ? 'active' : ''}`} onClick={() => setMotionFilter('all')}>All</button>
-              <button className={`filter-btn ${motionFilter === 'active' ? 'active' : ''}`} onClick={() => setMotionFilter('active')}>Active</button>
-              <button className={`filter-btn ${motionFilter === 'completed' ? 'active' : ''}`} onClick={() => setMotionFilter('completed')}>Completed</button>
+              <button
+                className={`filter-btn ${motionFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setMotionFilter('all')}
+                aria-label={`All motions, ${allCount} total`}
+                aria-pressed={motionFilter === 'all'}
+              >
+                All
+              </button>
+              <button
+                className={`filter-btn ${motionFilter === 'active' ? 'active' : ''}`}
+                onClick={() => setMotionFilter('active')}
+                aria-label={`Active motions, ${activeCount}`}
+                aria-pressed={motionFilter === 'active'}
+              >
+                Active ({activeCount})
+              </button>
+              <button
+                className={`filter-btn ${motionFilter === 'completed' ? 'active' : ''}`}
+                onClick={() => setMotionFilter('completed')}
+                aria-label={`Completed motions, ${completedCount}`}
+                aria-pressed={motionFilter === 'completed'}
+              >
+                Completed ({completedCount})
+              </button>
             </div>
             <div className="motions-list">
               {filteredMotions.length === 0 ? (
