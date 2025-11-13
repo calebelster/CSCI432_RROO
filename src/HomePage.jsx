@@ -4,6 +4,12 @@ import './HomePage.css';
 
 function HomePage({ currentUser }) {
     const navigate = useNavigate();
+    function generateInviteCode(len = 6) {
+        const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+        let out = '';
+        for (let i = 0; i < len; i++) out += chars.charAt(Math.floor(Math.random() * Math.random() * chars.length));
+        return out;
+    }
     const [homeData, setHomeData] = useState(() => {
         // load persisted homeData so created committees persist across reloads
         try {
@@ -51,7 +57,7 @@ function HomePage({ currentUser }) {
             return;
         }
         // Optionally set profile name
-        setHomeData(prev => ({ ...prev, profile: { name: currentUser.displayName || currentUser.email || prev.profile.name } }));
+        setHomeData(prev => ({ ...prev, profile: { name: currentUser.displayName || currentUser.email || prev.profile.name, email: currentUser.email || '' } }));
     }, [currentUser, navigate]);
 
     function handleCreateClick() {
@@ -82,9 +88,10 @@ function HomePage({ currentUser }) {
         setModalError('');
         setHomeData(prev => {
             // prepend the newly created committee so it appears first
-            const committees = [{ name, description, date: `Created ${new Date().toLocaleDateString()}`, role: 'Member' }, ...prev.committees];
+            const inviteCode = generateInviteCode();
+            const committees = [{ name, description, date: `Created ${new Date().toLocaleDateString()}`, role: 'Owner', inviteCode }, ...prev.committees];
             const committeeData = { ...prev.committeeData };
-            if (!committeeData[name]) committeeData[name] = { members: [prev.profile.name], motions: [], meetings: [] };
+            if (!committeeData[name]) committeeData[name] = { members: [{ name: prev.profile.name, role: 'owner', email: prev.profile.email || '', joined: Date.now() }], motions: [], meetings: [] };
             const stats = [...prev.stats];
             stats[0] = { ...stats[0], value: committees.length };
             return { ...prev, committees, committeeData, stats };

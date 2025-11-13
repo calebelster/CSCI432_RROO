@@ -107,6 +107,64 @@ export default function Committee() {
     setCommitteeData(homeData.committeeData[committeeName] || { members: [], motions: [], meetings: [] });
   }, [committeeName]);
 
+  /* If a logged-in profile exists and they're not yet a member, add them as member (join on visit) */
+  useEffect(() => {
+    try {
+      const profile = homeData.profile || {};
+      const userName = profile.name;
+      const userEmail = profile.email || '';
+      if (!userName) return;
+      const cm = homeData.committeeData && homeData.committeeData[committeeName];
+      if (!cm) return;
+      const exists = (cm.members || []).some(m => {
+        if (typeof m === 'string') return m === userName;
+        return m.name === userName || (m.email && userEmail && m.email === userEmail);
+      });
+      if (!exists) {
+        const newMember = { name: userName, role: 'member', email: userEmail, joined: Date.now() };
+        cm.members = [...(cm.members || []), newMember];
+        // persist
+        const raw = localStorage.getItem('homeData');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          parsed.committeeData = parsed.committeeData || {};
+          parsed.committeeData[committeeName] = cm;
+          try { localStorage.setItem('homeData', JSON.stringify(parsed)); } catch (err) { /* ignore */ }
+        }
+        setCommitteeData({ ...cm });
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, [committeeName]);
+
+// Test User !!
+  /* Add a local-only test user when running on localhost to allow role-change testing */
+  useEffect(() => {
+    try {
+      const host = window && window.location && window.location.hostname;
+      const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '';
+      if (!isLocal) return;
+      const cm = homeData.committeeData && homeData.committeeData[committeeName];
+      if (!cm) return;
+      const testName = 'Test User';
+      const exists = (cm.members || []).some(m => (typeof m === 'string' ? m === testName : m.name === testName));
+      if (!exists) {
+        const testMember = { name: testName, role: 'member', email: 'test@example.com', joined: Date.now() };
+        cm.members = [...(cm.members || []), testMember];
+        const raw = localStorage.getItem('homeData');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          parsed.committeeData = parsed.committeeData || {};
+          parsed.committeeData[committeeName] = cm;
+          try { localStorage.setItem('homeData', JSON.stringify(parsed)); } catch (err) { /* ignore */ }
+        }
+        setCommitteeData({ ...cm });
+      }
+    } catch (err) { /* ignore */ }
+  }, [committeeName]);
+// Test User!!
+
   function openModal() {
     setShowModal(true);
   }
@@ -272,22 +330,69 @@ export default function Committee() {
         ) : (
           <div className="members-section">
             <div className="members-header">Members</div>
-            <table className="members-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Position</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(committeeData.members || []).map((member, idx) => (
-                  <tr key={idx}>
-                    <td className="member-name">{member}</td>
-                    <td className="member-pos">Member</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="members-count">{(committeeData.members || []).length} members in this committee</div>
+
+            <div className="members-list">
+              {(committeeData.members || []).map((member, idx) => {
+                const mobj = typeof member === 'string' ? { name: member, role: 'member' } : member;
+                const name = mobj.name || 'Unknown';
+                const role = (mobj.role || 'member').toLowerCase();
+                const email = mobj.email || (homeData.profile && homeData.profile.name === name ? homeData.profile.email || '' : '');
+                const joined = mobj.joined ? new Date(mobj.joined).toLocaleDateString() : (committeeInfo && committeeInfo.date ? committeeInfo.date.replace(/^Created\s*/, '') : '');
+                const initials = name.split(' ').map(s => s[0]).slice(0,2).join('').toUpperCase();
+                const currentUser = homeData.profile && homeData.profile.name;
+                const isOwner = (committeeData.members || []).some(m => (typeof m === 'object' ? (m.role === 'owner' && m.name === currentUser) : false));
+
+                return (
+                  <div className="member-card" key={idx}>
+                    <div className="member-avatar">{initials}</div>
+                    <div className="member-info">
+                      <div className="member-top">
+                        <div className="member-name-large">{name}</div>
+                        <div className="member-role">
+                          {isOwner && name !== currentUser ? (
+                            <select value={role} onChange={(e) => {
+                              const newRole = e.target.value;
+                              // Prevent assigning the 'owner' role to another member.
+                              if (newRole === 'owner') {
+                                try { alert('There can be only one owner. You cannot assign the Owner role to another member.'); } catch (ex) { /* ignore */ }
+                                return;
+                              }
+                              try {
+                                const raw = localStorage.getItem('homeData');
+                                if (raw) {
+                                  const parsed = JSON.parse(raw);
+                                  const cm = parsed.committeeData && parsed.committeeData[committeeName];
+                                  if (cm && cm.members) {
+                                    cm.members = cm.members.map(m => {
+                                      const mm = typeof m === 'string' ? { name: m, role: 'member' } : m;
+                                      if (mm.name === name) return { ...mm, role: newRole };
+                                      return mm;
+                                    });
+                                    parsed.committeeData[committeeName] = cm;
+                                    try { localStorage.setItem('homeData', JSON.stringify(parsed)); } catch (err) {}
+                                    setCommitteeData(cm);
+                                  }
+                                }
+                              } catch (err) {}
+                            }} className="role-select">
+                              <option value="chair">Chair</option>
+                              <option value="member">Member</option>
+                              <option value="observer">Observer</option>
+                            </select>
+                          ) : (
+                            <span className={`role-badge ${role}`}>{role.charAt(0).toUpperCase() + role.slice(1)}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="member-email">{email}</div>
+                      <div className="member-joined">{joined ? `Joined ${joined}` : ''}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
