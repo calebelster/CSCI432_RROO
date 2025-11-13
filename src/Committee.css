@@ -1,296 +1,644 @@
+@import url("./HomePage.css");
+
+/* Map committee page classes to the HomePage theme (colors, fonts, spacing).
+   We import HomePage.css so shared global styles (root vars, body, cards) are applied.
+   Then we apply small, semantic mappings for committee-specific markup. */
+
+/* Ensure page-level font and background match homepage */
 body {
-	/* background: #101014; */
+	font-family: var(--font);
+	background: var(--bg);
+	color: var(--text);
 	margin: 0;
-	font-family: serif;
 }
+
+/* Ensure all buttons use the project default font */
+button {
+	font-family: var(--font);
+}
+
 .committee-container {
-	background: #c6f2ff;
+	/* keep same layout but use homepage background and container spacing */
+	background: transparent;
 	margin: 24px auto;
-	border-radius: 4px;
+	border-radius: 10px;
 	max-width: 98vw;
 	min-height: 90vh;
-	padding: 0;
+	padding: 20px;
+	box-sizing: border-box;
 }
+
 .committee-header-bar {
-	background: #6c7280;
-	color: #fff;
+	background: var(--card);
+	color: var(--text);
 	padding: 24px 32px 8px 32px;
-	border-radius: 4px 4px 0 0;
+	border-radius: 10px;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.07);
+	border: 1px solid rgba(255, 255, 255, 0.06);
 }
+
 .committee-header-bar h1 {
 	margin: 0;
-	font-size: 2rem;
+	font-size: 2.5rem;
+	font-weight: 700;
+	color: var(--text);
 }
+
 .committee-header-bar p {
 	margin: 0;
 	font-size: 1rem;
-	color: #e0e0e0;
-}
-.new-motion-btn {
-	background: #d3d1c2;
-	color: #333;
-	border: none;
-	border-radius: 20px;
-	padding: 8px 18px;
-	font-size: 1rem;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	cursor: pointer;
-}
-.new-motion-btn span {
-	font-size: 1.2em;
-}
-.tab-bar {
-	display: flex;
-	margin: 32px 0 0 0;
-	justify-content: center;
-}
-.tab {
-	background: #6c7280;
-	color: #222;
-	border: none;
-	border-radius: 12px 12px 0 0;
-	padding: 10px 40px;
-	font-size: 1.1rem;
-	margin: 0 2px;
-	cursor: pointer;
-	transition: background 0.2s;
-}
-.tab.active {
-	background: #e6f0f7;
-	color: #222;
-	font-weight: bold;
-}
-.tab-content {
-	padding: 32px;
-}
-.motions-section,
-.members-section {
-	max-width: 900px;
-	margin: 0 auto;
-}
-.motions-header,
-.members-header {
-	font-size: 1.5rem;
-	margin-bottom: 16px;
-}
-.motion-filters {
-	display: flex;
-	gap: 12px;
-	margin-bottom: 18px;
-}
-.filter-btn {
-	background: #6c7280;
-	color: #fff;
-	border: none;
-	border-radius: 8px;
-	padding: 6px 18px;
-	font-size: 1rem;
-	cursor: pointer;
-}
-.filter-btn.active {
-	background: #e6f0f7;
-	color: #222;
-}
-.motion-card {
-	background: #f6f7fa;
-	border: 2px solid #bfc3c9;
-	border-radius: 12px;
-	padding: 24px;
-	margin-bottom: 18px;
-}
-.motion-card h3 {
-	margin: 0 0 8px 0;
-	font-size: 1.3rem;
-}
-.motion-card p {
-	margin: 0 0 8px 0;
-}
-.motion-card-footer {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-top: 12px;
-}
-.motion-card-footer .creator,
-.motion-card-footer .date {
-	color: #444;
-	font-size: 0.95em;
-}
-.motion-card-footer .view-details-btn {
-	background: #fff;
-	border: 1px solid #888;
-	border-radius: 8px;
-	padding: 4px 14px;
-	cursor: pointer;
-}
-.members-table {
-	width: 100%;
-	background: #f6f7fa;
-	border-radius: 12px;
-	padding: 24px;
-}
-.members-table th,
-.members-table td {
-	text-align: left;
-	padding: 8px 16px;
-	font-size: 1.1rem;
-}
-.members-table th {
-	color: #222;
-	font-weight: bold;
-}
-.members-table tr:not(:last-child) {
-	border-bottom: 1px solid #d0d0d0;
-}
-
-/* Layout tweaks moved from inline styles in Committee.jsx */
-.committee-container {
-	padding: 20px;
+	color: var(--text);
+	opacity: 0.9;
 }
 
 .committee-header-left {
 	display: flex;
 	align-items: center;
-	gap: 18px;
+	gap: 18px
 }
 
 .back-btn {
-	background: #bfc3c9;
-	color: #222;
-	border: none;
+	background: transparent;
+	color: var(--text);
+	border: 1px solid rgba(255, 255, 255, 0.08);
 	border-radius: 8px;
-	padding: 7px 18px;
+	padding: 7px 14px;
 	font-size: 1rem;
 	cursor: pointer;
 }
 
 .new-motion-btn {
-	background: #6c7280;
+	background: #000;
 	color: #fff;
 	border: none;
 	border-radius: 8px;
 	padding: 8px 12px;
 	cursor: pointer;
-	display: flex;
+	display: inline-flex;
 	align-items: center;
-	gap: 6px;
+	gap: 8px;
+	font-family: var(--font);
 }
+
 .new-motion-btn .plus {
-	font-weight: 700;
+	font-weight: 700
 }
 
 .tab-bar {
+	/* Use card as the track and create a rounded outline that surrounds the tabs.
+	   Shrink to fit contents and center within the page. */
 	display: flex;
 	gap: 8px;
-	margin-bottom: 12px;
-	justify-content: flex-start;
+	margin: 20px auto 12px auto;
+	justify-content: center;
+	background: var(--card);
+	padding: 6px;
+	border-radius: 999px;
+	border: 1px solid rgba(255, 255, 255, 0.04);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+	width: fit-content;
+	box-sizing: border-box;
 }
 
-.motions-header, .members-header {
-	font-size: 1.2rem;
-	font-weight: 600;
-	margin-bottom: 8px;
+.tab {
+	/* tabs are transparent on the card track; the active tab becomes the inner pill */
+	background: transparent;
+	color: var(--text);
+	border: none;
+	padding: 8px 22px;
+	font-size: 1.05rem;
+	cursor: pointer;
+	border-radius: 999px;
+	transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.tab:not(.active):hover {
+	background: rgba(255, 255, 255, 0.02);
+}
+
+.tab.active {
+	/* inner pill for the selected option */
+	background: rgba(255, 255, 255, 0.95);
+	color: #111;
+	font-weight: 700;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.motions-section,
+.members-section {
+	max-width: 1100px;
+	margin: 0 auto;
+}
+
+.motions-header,
+.members-header {
+	font-size: 1.5rem;
+	font-weight: 700;
+	margin-bottom: 12px;
+	color: var(--text)
 }
 
 .motion-filters {
-	display: flex;
+	/* Use a pill track like the main tab-bar but left-aligned within the motions area */
+	display: inline-flex;
 	gap: 8px;
-	margin-bottom: 12px;
+	margin: 12px 0 14px 0;
+	justify-content: flex-start;
+	align-items: center;
+	background: var(--card);
+	padding: 6px;
+	border-radius: 999px;
+	border: 1px solid rgba(255, 255, 255, 0.04);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+	width: fit-content;
+	box-sizing: border-box;
 }
 
-.no-motions { color: #444; }
+.filter-btn {
+	/* buttons sit on the track and the active one becomes the inner pill */
+	background: transparent;
+	color: var(--text);
+	border: none;
+	padding: 8px 14px;
+	cursor: pointer;
+	border-radius: 999px;
+	font-size: 0.95rem;
+	transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
+}
+
+.filter-btn:not(.active):hover {
+	/* subtle hover without inverting colors */
+	background: rgba(255, 255, 255, 0.02);
+}
+
+.filter-btn.active {
+	/* inner pill for the selected option */
+	background: rgba(255, 255, 255, 0.95);
+	color: #111;
+	font-weight: 700;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
 
 .motion-card {
-	background: #f6f7fa;
-	border: 1px solid #e3e6ea;
-	border-radius: 8px;
-	padding: 12px;
-	margin-bottom: 10px;
+	background: var(--card);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 12px;
+	padding: 16px;
+	margin-bottom: 12px;
+	color: var(--text);
+	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
 }
-.motion-card h3 { margin: 0; }
-.motion-desc { margin: 8px 0; }
-.motion-meta .creator { margin-right: 12px; }
 
-.view-details-btn {
-	background: #fff;
-	border: 1px solid #888;
+.motion-card h3 {
+	margin: 0 0 8px 0;
+	font-size: 1.1rem;
+}
+
+.motion-desc {
+	margin: 8px 0;
+	color: var(--text);
+	opacity: 0.95
+}
+
+.motion-meta .creator {
+	margin-right: 12px;
+	color: var(--text);
+	opacity: 0.9
+}
+
+.view-details-btn,
+.motion-card-footer .view-details-btn {
+	background: #000;
+	color: #fff;
+	border: none;
 	border-radius: 8px;
 	padding: 6px 12px;
-	cursor: pointer;
+	cursor: pointer
 }
 
-/* Modal and form styling */
+.members-table {
+	width: 100%;
+	background: transparent;
+	border-radius: 12px;
+	padding: 12px 0;
+}
+
+.members-table td {
+	text-align: left;
+	padding: 8px 12px;
+	font-size: 1rem;
+	color: var(--text);
+}
+
+
+.members-table th {
+	font-weight: 700
+}
+
+.members-table tr:not(:last-child) {
+	border-bottom: 1px solid rgba(255, 255, 255, 0.04)
+}
+
+/* Modals use the same modal styles as homepage but adapted for card color */
 .modal-overlay {
 	position: fixed;
 	inset: 0;
-	background: rgba(16,16,20,0.7);
+	background: rgba(0, 0, 0, 0.45);
 	z-index: 1000;
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	padding: 24px;
+	/* allow some room when viewport is small */
+	overflow-y: auto;
+	/* allow scrolling when modal is taller than viewport */
 }
+
 .modal-content {
-	background: #f6f7fa;
-	border-radius: 16px;
-	max-width: 480px;
-	width: 95vw;
-	padding: 28px;
-	box-shadow: 0 8px 32px #0002;
-	position: relative;
-}
-.modal-content {
-	/* limit modal height to 80% of the viewport and allow scrolling inside */
-	max-height: 80vh;
-	box-sizing: border-box;
+	/* slightly larger, more airy modal like the reference -- keep theme colors */
+	/* background: var(--card); */
+	background: white;
+	/* color: var(--text); */
+	color: black;
+	border-radius: 12px;
+	max-width: 640px;
+	/* slightly smaller so modal covers less space */
+	width: min(86%, 640px);
+	padding: 20px;
+	/* tighter padding to reduce perceived size */
+	box-shadow: 0 20px 48px rgba(2, 6, 23, 0.35);
+	display: flex;
+	flex-direction: column;
+	/* make modal height responsive and scrollable when needed */
+	max-height: calc(100vh - 48px);
 	overflow-y: auto;
 }
+
 .modal-close {
 	position: absolute;
-	top: 18px;
-	right: 18px;
-	font-size: 1.7rem;
-	background: none;
+	top: 12px;
+	right: 12px;
+	background: transparent;
 	border: none;
-	color: #444;
+	width: 32px;
+	height: 32px;
+	border-radius: 6px;
 	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 }
-.modal-sub { color: #555; margin-bottom: 18px; }
 
-.motion-form .form-row { margin-bottom: 16px; }
-.form-label { font-weight: bold; display: block; margin-bottom: 4px; color: #111;}
-.form-select, .form-input, .form-textarea { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #bfc3c9; }
-.form-textarea { min-height: 70px; }
+.modal-sub {
+	color: #000;
+	opacity: 0.88;
+	margin-bottom: 16px;
+}
 
-/* Prevent the textarea from growing to fill the viewport inside the modal
-   and give it a reasonable maximum height so the modal remains within 80vh */
+.form-label {
+	color: #000;
+	display: block;
+	margin-bottom: 8px;
+	font-weight: 700;
+}
+
+.form-select,
+.form-input,
 .form-textarea {
+	width: 100%;
+	padding: 12px 14px;
+	border-radius: 10px;
+	border: 1px solid rgba(0, 0, 0, 0.06);
+	background: rgba(255, 255, 255, 0.04);
+	color: #000;
+	font-family: var(--font);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.form-textarea {
+	min-height: 120px;
 	max-height: 40vh;
-	height: 160px;
 	resize: vertical;
 }
 
-.form-note { color: #888; display: block; margin-top: 6px; }
-.form-row-inline { display: flex; align-items: center; gap: 10px; }
-.form-checkbox { accent-color: #6c7280; }
-.form-label-inline { font-weight: bold; color: #111;}
-.form-help { color: #888; font-size: 0.95em; }
+/* form rows spacing */
+.form-row {
+	margin-bottom: 14px;
+}
 
-.committee-settings { margin-bottom: 18px; background: #e6f0f7; border-radius: 10px; padding: 14px; }
-.settings-title { font-weight: bold; color: #444; margin-bottom: 6px; }
-.settings-list { display:flex; flex-direction: column; gap: 4px; font-size: 1rem; }
-.setting-name { color: #222; }
-.setting-val { color: #444; }
-.setting-val.yes { color: green; }
-.setting-val.no { color: #c00; }
+/* Inline form row used by the toggle and similar controls */
+.form-row-inline {
+	display: flex;
+}
 
-.form-actions { display: flex; justify-content: flex-end; gap: 12px; }
-.modal-cancel { background: #bfc3c9; color: #222; border: none; border-radius: 8px; padding: 8px 18px; cursor: pointer; }
-.modal-create { background: #6c7280; color: #fff; border: none; border-radius: 8px; padding: 8px 18px; cursor: pointer; }
+.form-label-inline {
+	color: #000;
+	/* keep label bold like other form labels */
+	font-weight: 700;
+	display: inline-block;
+}
 
-.member-name, .member-pos { padding: 8px; }
+.form-help {
+	display: block;
+	margin-top: 8px;
+	margin-left: 44px;
+	/* default indent used by some inline rows; overridden for the requires-row below */
+	color: rgba(0, 0, 0, 0.7);
+	font-size: 0.95rem;
+}
 
+/* Specific layout for the 'Requires Discussion' row: label+help on left, toggle on right */
+.requires-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.requires-left {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	flex: 1 1 auto;
+}
+
+.requires-right {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+}
+
+.requires-left .form-help {
+	margin-left: 0;
+	/* remove default indent for this layout */
+	margin-top: 6px;
+}
+
+@media (max-width: 520px) {
+	.requires-row {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.requires-right {
+		margin-top: 8px;
+	}
+}
+
+/* Toggle (switch) control */
+.switch {
+	position: relative;
+	display: inline-block;
+	width: 44px;
+	height: 26px;
+}
+
+.switch input {
+	opacity: 0;
+	width: 0;
+	height: 0;
+	position: absolute;
+}
+
+.switch-slider {
+	position: absolute;
+	cursor: pointer;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.06);
+	transition: background-color 160ms ease, border-color 160ms ease;
+	border-radius: 999px;
+	border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.switch-slider::before {
+	content: '';
+	position: absolute;
+	height: 20px;
+	width: 20px;
+	left: 3px;
+	top: 3px;
+	background: #fff;
+	border-radius: 50%;
+	transition: transform 160ms cubic-bezier(.2, .9, .2, 1), box-shadow 160ms ease;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* ensure option elements use the same font as inputs/selects */
+.form-select option,
+select {
+	font-family: var(--font);
+}
+
+.switch input:checked+.switch-slider {
+	background: #07122a;
+	/* match modal-create / brand dark */
+	border-color: rgba(0, 0, 0, 0.12);
+}
+
+.switch input:checked+.switch-slider::before {
+	transform: translateX(18px);
+}
+
+.modal-buttons {
+	display: flex;
+	gap: 12px;
+	justify-content: flex-end;
+	margin-top: 18px;
+	align-items: center;
+}
+
+/* Form actions used by the modal form (Create / Cancel) */
+.form-actions {
+	display: flex;
+	gap: 10px;
+	/* small space between buttons */
+	justify-content: center;
+	align-items: center;
+	margin-top: 12px;
+}
+
+.modal-cancel {
+	background: transparent;
+	border: 1px solid rgba(0, 0, 0, 0.06);
+	color: #000;
+	padding: 10px 14px;
+	border-radius: 10px;
+}
+
+.modal-create {
+	background: #07122a;
+	color: #fff;
+	border: none;
+	padding: 10px 16px;
+	border-radius: 10px;
+	box-shadow: 0 6px 18px rgba(7, 18, 42, 0.25);
+}
+
+/* committee settings block inside modal */
+.committee-settings {
+	margin-top: 12px;
+}
+
+.settings-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-weight: 700;
+	margin-bottom: 10px;
+}
+
+.settings-list {
+	background: rgba(255, 255, 255, 0.02);
+	border: 1px solid rgba(0, 0, 0, 0.04);
+	padding: 14px;
+	border-radius: 10px;
+}
+
+/* Layout each setting as a left label and right value */
+.settings-list>div {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 6px 0;
+}
+
+.settings-list .setting-name {
+	color: #000;
+	font-weight: 600;
+	text-align: left;
+}
+
+.settings-list .setting-val {
+	color: #000;
+	float: none;
+	text-align: right;
+	font-weight: 500;
+}
+
+@media (max-width: 520px) {
+	.settings-list>div {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.settings-list .setting-val {
+		text-align: left;
+		margin-top: 6px;
+	}
+}
+
+.invite-overlay {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.45);
+	z-index: 1200
+}
+
+.invite-content {
+	background: var(--card);
+	color: var(--text);
+	padding: 1.25rem;
+	border-radius: 10px;
+	width: 92%;
+	max-width: 520px
+}
+
+.invite-box input {
+	padding: 8px;
+	border-radius: 6px;
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	background: transparent;
+	color: var(--text)
+}
+
+.invite-box button {
+	padding: 8px 12px;
+	border-radius: 6px;
+	border: none;
+	background: #000;
+	color: #fff
+}
+
+.more-btn {
+	background: transparent;
+	border: none;
+	color: var(--text);
+	font-size: 1.25rem;
+	padding: 6px;
+	cursor: pointer
+}
+
+.more-menu-dropdown {
+	position: absolute;
+	right: 0;
+	top: 36px;
+	background: var(--card);
+	color: var(--text);
+	border-radius: 8px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+	z-index: 1300
+}
+
+.more-item {
+	display: block;
+	padding: 8px 12px;
+	background: none;
+	border: none;
+	text-align: left;
+	width: 100%;
+	cursor: pointer;
+	color: var(--text)
+}
+
+.more-item:hover {
+	background: rgba(255, 255, 255, 0.03)
+}
+
+.confirm-content {
+	background: var(--card);
+	color: var(--text);
+	padding: 18px 20px;
+	border-radius: 10px;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.confirm-cancel {
+	background: transparent;
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	color: var(--text);
+	padding: 8px 12px;
+	border-radius: 8px
+}
+
+.confirm-delete {
+	background: #c33;
+	color: #fff;
+	border: none;
+	padding: 8px 12px;
+	border-radius: 8px
+}
+
+/* Fine-tune spacing for small screens */
+@media (max-width: 768px) {
+	.committee-header-bar {
+		padding: 16px
+	}
+
+	.committee-header-bar h1 {
+		font-size: 1.6rem
+	}
+
+	.motions-section,
+	.members-section {
+		padding: 0 12px
+	}
+}

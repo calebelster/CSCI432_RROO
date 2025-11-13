@@ -32,7 +32,18 @@ export default function Committee() {
     profile: { name: 'You' },
   };
 
-  const homeData = window.opener?.homeData || defaultHomeData;
+  // Prefer a persisted homeData from localStorage so motions and committees persist across reloads
+  const _localHomeData = (() => {
+    try {
+      const raw = localStorage.getItem('homeData');
+      if (raw) return JSON.parse(raw);
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  })();
+
+  const homeData = window.opener?.homeData || _localHomeData || defaultHomeData;
 
   const getCommitteeName = () => {
     const params = new URLSearchParams(location.search);
@@ -57,6 +68,34 @@ export default function Committee() {
     threshold: 'Simple Majority',
     requiresDiscussion: false,
   });
+  const [showInvite, setShowInvite] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // try to find an invite code stored on the committee (HomePage stores inviteCode at creation)
+  const committeeObj = (homeData.committees || []).find((c) => c.name === committeeName) || null;
+  const inviteCode = committeeObj?.inviteCode || '';
+
+  function generateInviteCode(len = 6) {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let out = '';
+    for (let i = 0; i < len; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
+    return out;
+  }
+
+  async function copyToClipboard(text) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (err) { }
+      document.body.removeChild(ta);
+    }
+  }
 
   useEffect(() => {
     // update when location.search changes
@@ -89,8 +128,39 @@ export default function Committee() {
       threshold: form.threshold,
       requiresDiscussion: !!form.requiresDiscussion,
     };
+    // update local state
     setCommitteeData((prev) => {
       const updated = { ...prev, motions: [newMotion, ...(prev.motions || [])] };
+
+      // persist to opener window if available (legacy flow)
+      try {
+        if (window.opener && window.opener.homeData) {
+          window.opener.homeData.committeeData = window.opener.homeData.committeeData || {};
+          window.opener.homeData.committeeData[committeeName] = updated;
+          try { window.opener.localStorage.setItem('homeData', JSON.stringify(window.opener.homeData)); } catch (err) { /* ignore */ }
+        }
+      } catch (e) {
+        // ignore cross-origin or other opener issues
+      }
+
+      // persist to this window's localStorage so data remains across reloads
+      try {
+        const raw = localStorage.getItem('homeData');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          parsed.committeeData = parsed.committeeData || {};
+          parsed.committeeData[committeeName] = updated;
+          localStorage.setItem('homeData', JSON.stringify(parsed));
+        } else {
+          // create a small homeData container if none exists
+          const pd = { committees: [], committeeData: {} };
+          pd.committeeData[committeeName] = updated;
+          try { localStorage.setItem('homeData', JSON.stringify(pd)); } catch (err) { /* ignore */ }
+        }
+      } catch (err) {
+        // ignore storage errors
+      }
+
       return updated;
     });
     closeModal();
@@ -105,6 +175,11 @@ export default function Committee() {
     return true;
   });
 
+  // counts for filter badges
+  const allCount = (committeeData.motions || []).length;
+  const activeCount = (committeeData.motions || []).filter((m) => m.status === 'active').length;
+  const completedCount = (committeeData.motions || []).filter((m) => m.status === 'completed').length;
+
   function viewMotion(motion) {
     // store motion in sessionStorage and navigate to motions page
     try {
@@ -113,6 +188,27 @@ export default function Committee() {
       // ignore
     }
     navigate(`/motions?id=${motion.id}`);
+  }
+
+  function performDelete() {
+    // remove from window.opener.homeData if available (older flow), otherwise from localStorage
+    try {
+      if (window.opener && window.opener.homeData) {
+        const hd = window.opener.homeData;
+        hd.committees = (hd.committees || []).filter(c => c.name !== committeeName);
+        if (hd.committeeData && hd.committeeData[committeeName]) delete hd.committeeData[committeeName];
+        try { window.opener.localStorage.setItem('homeData', JSON.stringify(hd)); } catch (e) { }
+      }
+      // localStorage path
+      const raw = localStorage.getItem('homeData');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        parsed.committees = (parsed.committees || []).filter(c => c.name !== committeeName);
+        if (parsed.committeeData && parsed.committeeData[committeeName]) delete parsed.committeeData[committeeName];
+        localStorage.setItem('homeData', JSON.stringify(parsed));
+      }
+    } catch (e) { /* ignore */ }
+    navigate('/home');
   }
 
   return (
@@ -125,7 +221,18 @@ export default function Committee() {
             <p id="committee-desc">{committeeInfo.description}</p>
           </div>
         </div>
-        <button className="new-motion-btn" onClick={openModal}><span className="plus">+</span> New Motion</button>
+        <div className="committee-header-right">
+          <button className="invite-btn" onClick={() => setShowInvite(true)}>Invite Members</button>
+          <button className="new-motion-btn" onClick={openModal}><span className="plus">+</span> New Motion</button>
+          <div className="more-container">
+            <button className="more-btn" onClick={() => setShowMenu((s) => !s)}>⋯</button>
+            {showMenu && (
+              <div className="more-menu-dropdown">
+                <button className="more-item" onClick={() => { setConfirmDelete(true); setShowMenu(false); }}>Delete Committee</button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="tab-bar">
@@ -138,9 +245,30 @@ export default function Committee() {
           <div className="motions-section">
             <div className="motions-header">Motions</div>
             <div className="motion-filters">
-              <button className={`filter-btn ${motionFilter === 'active' ? 'active' : ''}`} onClick={() => setMotionFilter('active')}>Active</button>
-              <button className={`filter-btn ${motionFilter === 'completed' ? 'active' : ''}`} onClick={() => setMotionFilter('completed')}>Completed</button>
-              <button className={`filter-btn ${motionFilter === 'all' ? 'active' : ''}`} onClick={() => setMotionFilter('all')}>All</button>
+              <button
+                className={`filter-btn ${motionFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setMotionFilter('all')}
+                aria-label={`All motions, ${allCount} total`}
+                aria-pressed={motionFilter === 'all'}
+              >
+                All
+              </button>
+              <button
+                className={`filter-btn ${motionFilter === 'active' ? 'active' : ''}`}
+                onClick={() => setMotionFilter('active')}
+                aria-label={`Active motions, ${activeCount}`}
+                aria-pressed={motionFilter === 'active'}
+              >
+                Active ({activeCount})
+              </button>
+              <button
+                className={`filter-btn ${motionFilter === 'completed' ? 'active' : ''}`}
+                onClick={() => setMotionFilter('completed')}
+                aria-label={`Completed motions, ${completedCount}`}
+                aria-pressed={motionFilter === 'completed'}
+              >
+                Completed ({completedCount})
+              </button>
             </div>
             <div className="motions-list">
               {filteredMotions.length === 0 ? (
@@ -175,8 +303,8 @@ export default function Committee() {
               <tbody>
                 {(committeeData.members || []).map((member, idx) => (
                   <tr key={idx}>
-                      <td className="member-name">{member}</td>
-                      <td className="member-pos">Member</td>
+                    <td className="member-name">{member}</td>
+                    <td className="member-pos">Member</td>
                   </tr>
                 ))}
               </tbody>
@@ -222,10 +350,17 @@ export default function Committee() {
                 <small className="form-note">More than 50% of votes cast</small>
               </div>
 
-              <div className="form-row form-row-inline">
-                <input type="checkbox" id="requires-discussion" name="requiresDiscussion" checked={form.requiresDiscussion} onChange={(e) => setForm({ ...form, requiresDiscussion: e.target.checked })} className="form-checkbox" />
-                <label htmlFor="requires-discussion" className="form-label-inline">Requires Discussion</label>
-                <span className="form-help">Allow members to discuss this motion before voting</span>
+              <div className="form-row requires-row">
+                <div className="requires-left">
+                  <label className="form-label-inline">Requires Discussion</label>
+                  <span className="form-help">Allow members to discuss this motion before voting</span>
+                </div>
+                <div className="requires-right">
+                  <label className="switch">
+                    <input type="checkbox" name="requiresDiscussion" checked={form.requiresDiscussion} onChange={(e) => setForm({ ...form, requiresDiscussion: e.target.checked })} />
+                    <span className="switch-slider" />
+                  </label>
+                </div>
               </div>
 
               <div className="committee-settings">
@@ -238,10 +373,45 @@ export default function Committee() {
               </div>
 
               <div className="form-actions">
-                <button type="button" className="modal-cancel" onClick={closeModal}>Cancel</button>
                 <button type="submit" className="modal-create">Create Motion</button>
+                <button type="button" className="modal-cancel" onClick={closeModal}>Cancel</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {confirmDelete && (
+        <div className="confirm-overlay" onClick={(e) => { if (e.target.className && e.target.className.includes('confirm-overlay')) setConfirmDelete(false); }}>
+          <div className="confirm-content">
+            <h3>Delete committee?</h3>
+            <p>Are you sure you want to delete "{committeeName}"? This will remove all local data for this committee.</p>
+            <div className="confirm-actions">
+              <button className="confirm-cancel" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              <button className="confirm-delete" onClick={() => { setConfirmDelete(false); performDelete(); }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showInvite && (
+        <div className="invite-overlay" onClick={(e) => { if (e.target.className && e.target.className.includes('invite-overlay')) setShowInvite(false); }}>
+          <div className="invite-content">
+            <button className="modal-close" onClick={() => setShowInvite(false)}>&times;</button>
+            <h3>Invite Members</h3>
+            <p>Share a link to this committee or give collaborators the invite code.</p>
+            <div className="invite-row">
+              <label>Shareable Link</label>
+              <div className="invite-box">
+                <input readOnly value={(window.location.origin || '') + '/committee?name=' + encodeURIComponent(committeeName)} />
+                <button onClick={() => copyToClipboard((window.location.origin || '') + '/committee?name=' + encodeURIComponent(committeeName))}>Copy</button>
+              </div>
+            </div>
+            <div className="invite-row">
+              <label>Invite Code</label>
+              <div className="invite-box">
+                <input readOnly value={inviteCode || generateInviteCode()} />
+                <button onClick={() => copyToClipboard(inviteCode || generateInviteCode())}>Copy</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
