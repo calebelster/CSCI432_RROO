@@ -2,6 +2,20 @@
    This file provides lightweight, theme-aware defaults so the component
    renders consistently and the bundler/Netlify build can resolve the import.
 */
+@import "//cdn.jsdelivr.net/npm/font-kopub@1.0";
+
+:root {
+    --border-radius: 10px;
+    --background: #AED9E0;
+    --box-shadow: 2px 5px 10px rgba(0, 0, 0, 0.3);
+}
+
+body {
+    margin: 0;
+    font-family: 'KoPub Batang', Arial, sans-serif;
+    background: var(--background);
+    padding: 20px;
+}
 
 .motions-page {
     font-family: var(--font, Arial, Helvetica, sans-serif);
@@ -98,20 +112,6 @@ select {
     }
 }
 
-@import "//cdn.jsdelivr.net/npm/font-kopub@1.0";
-
-:root {
-    --border-radius: 10px;
-    --background: #AED9E0;
-    --box-shadow: 2px 5px 10px rgba(0, 0, 0, 0.3);
-}
-
-body {
-    margin: 0;
-    font-family: 'KoPub Batang', Arial, sans-serif;
-    background: var(--background);
-    padding: 20px;
-}
 
 /* page container for the React component */
 .motions-page {

@@ -245,30 +245,9 @@ export default function Committee() {
           <div className="motions-section">
             <div className="motions-header">Motions</div>
             <div className="motion-filters">
-              <button
-                className={`filter-btn ${motionFilter === 'all' ? 'active' : ''}`}
-                onClick={() => setMotionFilter('all')}
-                aria-label={`All motions, ${allCount} total`}
-                aria-pressed={motionFilter === 'all'}
-              >
-                All
-              </button>
-              <button
-                className={`filter-btn ${motionFilter === 'active' ? 'active' : ''}`}
-                onClick={() => setMotionFilter('active')}
-                aria-label={`Active motions, ${activeCount}`}
-                aria-pressed={motionFilter === 'active'}
-              >
-                Active ({activeCount})
-              </button>
-              <button
-                className={`filter-btn ${motionFilter === 'completed' ? 'active' : ''}`}
-                onClick={() => setMotionFilter('completed')}
-                aria-label={`Completed motions, ${completedCount}`}
-                aria-pressed={motionFilter === 'completed'}
-              >
-                Completed ({completedCount})
-              </button>
+              <button className={`filter-btn ${motionFilter === 'all' ? 'active' : ''}`} onClick={() => setMotionFilter('all')}>All</button>
+              <button className={`filter-btn ${motionFilter === 'active' ? 'active' : ''}`} onClick={() => setMotionFilter('active')}>Active ({activeCount})</button>
+              <button className={`filter-btn ${motionFilter === 'completed' ? 'active' : ''}`} onClick={() => setMotionFilter('completed')}>Completed ({completedCount})</button>
             </div>
             <div className="motions-list">
               {filteredMotions.length === 0 ? (
