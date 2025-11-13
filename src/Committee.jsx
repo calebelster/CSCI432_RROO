@@ -32,7 +32,18 @@ export default function Committee() {
     profile: { name: 'You' },
   };
 
-  const homeData = window.opener?.homeData || defaultHomeData;
+  // Prefer a persisted homeData from localStorage so motions and committees persist across reloads
+  const _localHomeData = (() => {
+    try {
+      const raw = localStorage.getItem('homeData');
+      if (raw) return JSON.parse(raw);
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  })();
+
+  const homeData = window.opener?.homeData || _localHomeData || defaultHomeData;
 
   const getCommitteeName = () => {
     const params = new URLSearchParams(location.search);
@@ -117,8 +128,39 @@ export default function Committee() {
       threshold: form.threshold,
       requiresDiscussion: !!form.requiresDiscussion,
     };
+    // update local state
     setCommitteeData((prev) => {
       const updated = { ...prev, motions: [newMotion, ...(prev.motions || [])] };
+
+      // persist to opener window if available (legacy flow)
+      try {
+        if (window.opener && window.opener.homeData) {
+          window.opener.homeData.committeeData = window.opener.homeData.committeeData || {};
+          window.opener.homeData.committeeData[committeeName] = updated;
+          try { window.opener.localStorage.setItem('homeData', JSON.stringify(window.opener.homeData)); } catch (err) { /* ignore */ }
+        }
+      } catch (e) {
+        // ignore cross-origin or other opener issues
+      }
+
+      // persist to this window's localStorage so data remains across reloads
+      try {
+        const raw = localStorage.getItem('homeData');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          parsed.committeeData = parsed.committeeData || {};
+          parsed.committeeData[committeeName] = updated;
+          localStorage.setItem('homeData', JSON.stringify(parsed));
+        } else {
+          // create a small homeData container if none exists
+          const pd = { committees: [], committeeData: {} };
+          pd.committeeData[committeeName] = updated;
+          try { localStorage.setItem('homeData', JSON.stringify(pd)); } catch (err) { /* ignore */ }
+        }
+      } catch (err) {
+        // ignore storage errors
+      }
+
       return updated;
     });
     closeModal();
@@ -150,7 +192,7 @@ export default function Committee() {
         const hd = window.opener.homeData;
         hd.committees = (hd.committees || []).filter(c => c.name !== committeeName);
         if (hd.committeeData && hd.committeeData[committeeName]) delete hd.committeeData[committeeName];
-        try { window.opener.localStorage.setItem('homeData', JSON.stringify(hd)); } catch (e) {}
+        try { window.opener.localStorage.setItem('homeData', JSON.stringify(hd)); } catch (e) { }
       }
       // localStorage path
       const raw = localStorage.getItem('homeData');
@@ -198,9 +240,9 @@ export default function Committee() {
           <div className="motions-section">
             <div className="motions-header">Motions</div>
             <div className="motion-filters">
+              <button className={`filter-btn ${motionFilter === 'all' ? 'active' : ''}`} onClick={() => setMotionFilter('all')}>All</button>
               <button className={`filter-btn ${motionFilter === 'active' ? 'active' : ''}`} onClick={() => setMotionFilter('active')}>Active</button>
               <button className={`filter-btn ${motionFilter === 'completed' ? 'active' : ''}`} onClick={() => setMotionFilter('completed')}>Completed</button>
-              <button className={`filter-btn ${motionFilter === 'all' ? 'active' : ''}`} onClick={() => setMotionFilter('all')}>All</button>
             </div>
             <div className="motions-list">
               {filteredMotions.length === 0 ? (
@@ -235,8 +277,8 @@ export default function Committee() {
               <tbody>
                 {(committeeData.members || []).map((member, idx) => (
                   <tr key={idx}>
-                      <td className="member-name">{member}</td>
-                      <td className="member-pos">Member</td>
+                    <td className="member-name">{member}</td>
+                    <td className="member-pos">Member</td>
                   </tr>
                 ))}
               </tbody>
@@ -282,10 +324,17 @@ export default function Committee() {
                 <small className="form-note">More than 50% of votes cast</small>
               </div>
 
-              <div className="form-row form-row-inline">
-                <input type="checkbox" id="requires-discussion" name="requiresDiscussion" checked={form.requiresDiscussion} onChange={(e) => setForm({ ...form, requiresDiscussion: e.target.checked })} className="form-checkbox" />
-                <label htmlFor="requires-discussion" className="form-label-inline">Requires Discussion</label>
-                <span className="form-help">Allow members to discuss this motion before voting</span>
+              <div className="form-row requires-row">
+                <div className="requires-left">
+                  <label className="form-label-inline">Requires Discussion</label>
+                  <span className="form-help">Allow members to discuss this motion before voting</span>
+                </div>
+                <div className="requires-right">
+                  <label className="switch">
+                    <input type="checkbox" name="requiresDiscussion" checked={form.requiresDiscussion} onChange={(e) => setForm({ ...form, requiresDiscussion: e.target.checked })} />
+                    <span className="switch-slider" />
+                  </label>
+                </div>
               </div>
 
               <div className="committee-settings">
@@ -298,8 +347,8 @@ export default function Committee() {
               </div>
 
               <div className="form-actions">
-                <button type="button" className="modal-cancel" onClick={closeModal}>Cancel</button>
                 <button type="submit" className="modal-create">Create Motion</button>
+                <button type="button" className="modal-cancel" onClick={closeModal}>Cancel</button>
               </div>
             </form>
           </div>
