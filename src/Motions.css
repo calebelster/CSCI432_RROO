@@ -1,9 +1,109 @@
+/* Basic motions stylesheet to satisfy import from src/Motions.jsx
+   This file provides lightweight, theme-aware defaults so the component
+   renders consistently and the bundler/Netlify build can resolve the import.
+*/
+
+.motions-page {
+    font-family: var(--font, Arial, Helvetica, sans-serif);
+    padding: 24px;
+    background: var(--bg, transparent);
+    color: var(--text, #111);
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+#motions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.motion {
+    background: var(--card, #ffffff);
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
+    color: var(--text, #111);
+}
+
+.motion h2 {
+    margin: 0 0 8px 0;
+    font-size: 1.1rem;
+}
+
+.focused-motion {
+    outline: 3px solid rgba(7, 18, 42, 0.18);
+    transition: outline 200ms ease;
+}
+
+.replies {
+    margin-top: 12px;
+}
+
+.reply {
+    padding: 8px 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.no-replies {
+    color: rgba(0, 0, 0, 0.6);
+    padding: 8px 0;
+}
+
+.reply-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    align-items: center;
+}
+
+.reply-input,
+.reply-select {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    font-family: var(--font, Arial, Helvetica, sans-serif);
+}
+
+.reply-input {
+    flex: 1 1 auto;
+}
+
+.reply-button {
+    background: #07122a;
+    color: #fff;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: var(--font, Arial, Helvetica, sans-serif);
+}
+
+/* ensure option elements use project font when available */
+.reply-select option,
+select {
+    font-family: var(--font, Arial, Helvetica, sans-serif);
+}
+
+@media (max-width: 520px) {
+    .reply-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .reply-button {
+        width: 100%;
+    }
+}
+
 @import "//cdn.jsdelivr.net/npm/font-kopub@1.0";
 
 :root {
     --border-radius: 10px;
     --background: #AED9E0;
-    --box-shadow: 2px 5px 10px rgba(0,0,0,0.3);
+    --box-shadow: 2px 5px 10px rgba(0, 0, 0, 0.3);
 }
 
 body {
@@ -52,17 +152,25 @@ h1 {
 }
 
 /* Reply form controls (scoped) */
-.reply-form { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+.reply-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    align-items: center;
+}
+
 .reply-input {
     flex: 1;
     padding: 8px 10px;
     border-radius: 6px;
     border: 1px solid #ccc;
 }
+
 .reply-select {
     padding: 8px;
     border-radius: 6px;
 }
+
 .reply-button {
     padding: 8px 12px;
     border-radius: 6px;
@@ -71,6 +179,12 @@ h1 {
     background-color: #444;
     color: #fff;
 }
-.reply-button:hover { background-color: #222; }
 
-.no-replies { color: #666; margin-bottom: 8px; }
+.reply-button:hover {
+    background-color: #222;
+}
+
+.no-replies {
+    color: #666;
+    margin-bottom: 8px;
+}
