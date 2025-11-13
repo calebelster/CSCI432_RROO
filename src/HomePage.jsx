@@ -23,7 +23,7 @@ function HomePage({ currentUser }) {
             stats: [
                 { title: 'Your Committees', value: 2, description: "Active committees you're part of" },
                 { title: 'Pending Motions', value: 3, description: "Motions requiring your attention" },
-                { title: 'Upcoming Meetings', value: 1, description: 'Scheduled for this week' }
+                { title: 'Upcoming Meetings', value: 0, description: 'Scheduled for this week' }
             ],
             committees: [
                 { name: 'Board of Directors', description: 'Monthly board meeting for strategic decisions', date: 'Created 1/14/2024', role: 'Member' },
@@ -50,6 +50,55 @@ function HomePage({ currentUser }) {
             // ignore
         }
     }, [homeData]);
+
+    // Recompute Pending Motions stat: total active motions across all committees
+    useEffect(() => {
+        try {
+            const cmData = homeData.committeeData || {};
+            let pending = 0;
+            Object.values(cmData).forEach(cm => {
+                if (!cm || !cm.motions) return;
+                pending += (cm.motions || []).filter(m => m && m.status === 'active').length;
+            });
+
+            const currentPending = (homeData.stats && homeData.stats[1] && typeof homeData.stats[1].value === 'number') ? homeData.stats[1].value : null;
+            if (currentPending !== pending) {
+                setHomeData(prev => {
+                    const stats = Array.isArray(prev.stats) ? [...prev.stats] : [];
+                    // ensure at least 3 slots
+                    while (stats.length < 3) stats.push({ title: '', value: 0, description: '' });
+                    stats[1] = { ...(stats[1] || {}), title: 'Pending Motions', value: pending, description: 'Motions requiring your attention' };
+                    return { ...prev, stats };
+                });
+            }
+        } catch (e) {
+            // ignore
+        }
+    }, [homeData.committeeData]);
+
+    // Ensure Upcoming Meetings stat reflects total meetings (currently not used) — keep at 0 if none
+    useEffect(() => {
+        try {
+            const cmData = homeData.committeeData || {};
+            let meetingsCount = 0;
+            Object.values(cmData).forEach(cm => {
+                if (!cm || !cm.meetings) return;
+                meetingsCount += (cm.meetings || []).length;
+            });
+
+            const currentMeetings = (homeData.stats && homeData.stats[2] && typeof homeData.stats[2].value === 'number') ? homeData.stats[2].value : null;
+            if (currentMeetings !== meetingsCount) {
+                setHomeData(prev => {
+                    const stats = Array.isArray(prev.stats) ? [...prev.stats] : [];
+                    while (stats.length < 3) stats.push({ title: '', value: 0, description: '' });
+                    stats[2] = { ...(stats[2] || {}), title: 'Upcoming Meetings', value: meetingsCount, description: 'Scheduled for this week' };
+                    return { ...prev, stats };
+                });
+            }
+        } catch (e) {
+            // ignore
+        }
+    }, [homeData.committeeData]);
 
     useEffect(() => {
         if (!currentUser) {

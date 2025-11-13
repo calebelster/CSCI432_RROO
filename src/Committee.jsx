@@ -107,6 +107,33 @@ export default function Committee() {
     setCommitteeData(homeData.committeeData[committeeName] || { members: [], motions: [], meetings: [] });
   }, [committeeName]);
 
+  // Refresh committee state when homeData changes elsewhere (profile edits, role changes)
+  useEffect(() => {
+    const refreshFromStorage = () => {
+      try {
+        const raw = localStorage.getItem('homeData');
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        setCommitteeInfo((parsed.committees || []).find((c) => c.name === committeeName) || { name: committeeName, description: '' });
+        setCommitteeData(parsed.committeeData && parsed.committeeData[committeeName] ? parsed.committeeData[committeeName] : { members: [], motions: [], meetings: [] });
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    const storageHandler = (e) => {
+      if (!e) { refreshFromStorage(); return; }
+      if (e.key === 'homeData') refreshFromStorage();
+    };
+
+    window.addEventListener('homeDataChanged', refreshFromStorage);
+    window.addEventListener('storage', storageHandler);
+    return () => {
+      window.removeEventListener('homeDataChanged', refreshFromStorage);
+      window.removeEventListener('storage', storageHandler);
+    };
+  }, [committeeName]);
+
   /* If a logged-in profile exists and they're not yet a member, add them as member (join on visit) */
   useEffect(() => {
     try {
