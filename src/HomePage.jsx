@@ -1,17 +1,16 @@
+// File: `src/HomePage.jsx`
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './HomePage.css';
+import { createCommittee } from './firebase/committees';
 
 function HomePage({ currentUser }) {
     const navigate = useNavigate();
     const [homeData, setHomeData] = useState(() => {
-        // load persisted homeData so created committees persist across reloads
         try {
             const raw = localStorage.getItem('homeData');
             if (raw) return JSON.parse(raw);
-        } catch (e) {
-            // ignore
-        }
+        } catch (e) {}
         return {
             profile: { name: 'Profile Name' },
             stats: [
@@ -35,14 +34,12 @@ function HomePage({ currentUser }) {
     const [modalError, setModalError] = useState('');
     const [openMenuFor, setOpenMenuFor] = useState(null);
     const [confirmDeleteFor, setConfirmDeleteFor] = useState(null);
+    const [creating, setCreating] = useState(false);
 
-    // persist homeData to localStorage whenever it changes
     useEffect(() => {
         try {
             localStorage.setItem('homeData', JSON.stringify(homeData));
-        } catch (e) {
-            // ignore
-        }
+        } catch (e) {}
     }, [homeData]);
 
     useEffect(() => {
@@ -50,7 +47,6 @@ function HomePage({ currentUser }) {
             navigate('/login');
             return;
         }
-        // Optionally set profile name
         setHomeData(prev => ({ ...prev, profile: { name: currentUser.displayName || currentUser.email || prev.profile.name } }));
     }, [currentUser, navigate]);
 
@@ -58,7 +54,6 @@ function HomePage({ currentUser }) {
         setModalOpen(true);
     }
 
-    // focus the name input when modal opens
     useEffect(() => {
         if (modalOpen) {
             const el = document.getElementById('committee-name');
@@ -72,7 +67,7 @@ function HomePage({ currentUser }) {
         setModalError('');
     }
 
-    function handleCreateCommittee() {
+    async function handleCreateCommittee() {
         const name = newCommittee.name.trim();
         const description = newCommittee.description.trim();
         if (!name || !description) {
@@ -80,29 +75,41 @@ function HomePage({ currentUser }) {
             return;
         }
         setModalError('');
+        // Try to persist to Firestore, fall back to local-only
+        setCreating(true);
+        let committeeId = null;
+        try {
+            committeeId = await createCommittee({ name, description, settings: {} });
+        } catch (err) {
+            // Firestore error - continue with local-only behavior but show a note
+            console.warn('createCommittee failed:', err);
+            setModalError('Created locally (Firestore failed).');
+        } finally {
+            setCreating(false);
+        }
+
         setHomeData(prev => {
-            // prepend the newly created committee so it appears first
-            const committees = [{ name, description, date: `Created ${new Date().toLocaleDateString()}`, role: 'Member' }, ...prev.committees];
+            const committees = [{ name, description, date: `Created ${new Date().toLocaleDateString()}`, role: currentUser ? 'Owner' : 'Member', id: committeeId }, ...prev.committees];
             const committeeData = { ...prev.committeeData };
             if (!committeeData[name]) committeeData[name] = { members: [prev.profile.name], motions: [], meetings: [] };
             const stats = [...prev.stats];
             stats[0] = { ...stats[0], value: committees.length };
-            return { ...prev, committees, committeeData, stats };
+            const out = { ...prev, committees, committeeData, stats };
+            try { localStorage.setItem('homeData', JSON.stringify(out)); } catch (e) {}
+            return out;
         });
+
+        // close modal (if created successfully, still close)
         setModalOpen(false);
         setNewCommittee({ name: '', description: '' });
-        // scroll the committees container to show the newest card
         setTimeout(() => {
             const container = document.querySelector('.committee-card-grid');
             if (container) container.scrollTo({ left: 0, behavior: 'smooth' });
         }, 80);
     }
 
-    
-
     function enterCommittee(committee) {
         const committeeName = encodeURIComponent(committee.name);
-        // navigate to the React Committee route with query param
         navigate(`/committee?name=${committeeName}`);
     }
 
@@ -116,7 +123,6 @@ function HomePage({ currentUser }) {
             const stats = [...prev.stats];
             stats[0] = { ...stats[0], value: committees.length };
             const out = { ...prev, committees, committeeData, stats };
-            // persist immediately
             try { localStorage.setItem('homeData', JSON.stringify(out)); } catch (e) {}
             return out;
         });
@@ -204,13 +210,15 @@ function HomePage({ currentUser }) {
                             </div>
                             <div className="modal-form-group">
                                 <label htmlFor="committee-description">Description</label>
-                                <textarea id="committee-description" value={newCommittee.description} onChange={e => setNewCommittee(prev => ({ ...prev, description: e.target.value }))} />
+                                <textarea id="committee-description" value={newCommittee.description} onChange={(e) => setNewCommittee(prev => ({ ...prev, description: e.target.value }))} />
                             </div>
                             {modalError && <div className="modal-error" style={{ color: 'red', marginTop: 8 }}>{modalError}</div>}
                         </div>
                         <div className="modal-buttons">
                             <button type="button" className="modal-button cancel" onClick={handleCreateCancel}>Cancel</button>
-                            <button type="button" className="modal-button create" onClick={handleCreateCommittee}>Create Committee</button>
+                            <button type="button" className="modal-button create" onClick={handleCreateCommittee} disabled={creating}>
+                                {creating ? 'Creating...' : 'Create Committee'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -227,7 +235,7 @@ function HomePage({ currentUser }) {
                     </div>
                 </div>
             )}
-            
+
         </div>
     );
 }
