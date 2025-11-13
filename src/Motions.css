@@ -196,3 +196,15 @@ h1 {
     color: #666;
     margin-bottom: 8px;
 }
+
+.voting {
+    margin-top: 12px;
+    background: rgba(0,0,0,0.3);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.voting h4{
+    margin-top: 0;
+    margin-bottom: 10px;
+}

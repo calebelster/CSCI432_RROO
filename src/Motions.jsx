@@ -1,37 +1,70 @@
-// File: `src/Motions.jsx`
+// javascript
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import './motions.css';
 import { replyToMotion, castVote } from './firebase/committees';
+import { db } from './firebase/firebase';
+import { collection, onSnapshot, doc, getDocs } from 'firebase/firestore';
 
 export default function Motions() {
     const location = useLocation();
-    const [motions, setMotions] = useState([
-        {
-            id: 1,
-            title: 'Extend meeting time',
-            description: 'Proposal to extend the current meeting by 30 minutes to finish agenda items.',
-            creator: 'Alice',
-            status: 'pending',
-            replies: [
-                { user: 'Dave', text: 'I agree we need more time.', stance: 'pro' },
-                { user: 'Eve', text: 'I think we should stick to schedule.', stance: 'con' },
-            ],
-            tally: { yes: 0, no: 0, abstain: 0 },
-        },
-        {
-            id: 2,
-            title: 'Change voting procedure',
-            description: 'Proposal to switch to anonymous voting for motions requiring 2/3 approval.',
-            creator: 'Bob',
-            status: 'discussion',
-            replies: [],
-            tally: { yes: 0, no: 0, abstain: 0 },
-        },
-    ]);
-
+    const [motions, setMotions] = useState([]);
     const [replyInputs, setReplyInputs] = useState({});
     const [replyStances, setReplyStances] = useState({});
+
+    // derive motion id and committee id (sessionStorage established by Committee view)
+    useEffect(() => {
+        let cid = null;
+        try {
+            const params = new URLSearchParams(location.search);
+            const id = params.get('id');
+            const raw = sessionStorage.getItem('motion_' + id);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                cid = parsed.committeeId || null;
+            }
+        } catch (e) { cid = null; }
+
+        if (!cid) {
+            // fallback: try to read all motions from localStorage
+            try {
+                const raw = localStorage.getItem('homeData');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    // flatten local motions
+                    const all = [];
+                    for (const k in parsed.committeeData || {}) {
+                        const cm = parsed.committeeData[k];
+                        (cm.motions || []).forEach(m => all.push(m));
+                    }
+                    setMotions(all);
+                }
+            } catch (e) {}
+            return;
+        }
+
+        // subscribe to motions in Firestore for this committee
+        const motionsCol = collection(db, 'committees', cid, 'motions');
+        const unsub = onSnapshot(motionsCol, (snap) => {
+            const docs = snap.docs.map(d => {
+                const md = d.data();
+                return {
+                    id: d.id,
+                    title: md.title || md.name || 'Untitled Motion',
+                    description: md.description || '',
+                    creator: md.creatorUid || md.creator || '',
+                    status: md.status || 'active',
+                    replies: md.replies || [], // replies may be in subcollection; separate listener needed if important
+                    tally: md.tally || { yes: 0, no: 0, abstain: 0 }
+                };
+            }).sort((a,b) => (b.id || '').localeCompare(a.id || ''));
+            setMotions(docs);
+        }, (err) => {
+            console.warn('motions listener failed', err);
+        });
+
+        return () => unsub();
+    }, [location.search]);
 
     function handleInputChange(id, value) {
         setReplyInputs((prev) => ({ ...prev, [id]: value }));
@@ -63,7 +96,7 @@ export default function Motions() {
             }
         }
 
-        setMotions((prev) => prev.map((m) => (m.id === motionId ? { ...m, replies: [...m.replies, { user: 'You', text, stance }] } : m)));
+        setMotions((prev) => prev.map((m) => (m.id === motionId ? { ...m, replies: [...(m.replies || []), { user: 'You', text, stance }] } : m)));
         setReplyInputs((prev) => ({ ...prev, [motionId]: '' }));
         setReplyStances((prev) => ({ ...prev, [motionId]: 'pro' }));
     }
@@ -84,14 +117,18 @@ export default function Motions() {
         if (cid) {
             try {
                 await castVote(cid, motionId.toString(), { choice, anonymous: false });
+                // castVote updates Firestore tally via transaction; onSnapshot will refresh UI
+                return;
             } catch (err) {
                 console.error('castVote failed:', err);
             }
         }
 
+        // Local fallback: ensure user can only have one vote per motion locally
         setMotions((prev) => prev.map((m) => {
             if (m.id !== motionId) return m;
             const tally = { ...(m.tally || { yes: 0, no: 0, abstain: 0 }) };
+            // simple local: increment chosen (no decrement of previous) - for robust local-only behavior you'd track local votes per user
             if (choice === 'yes') tally.yes = (tally.yes || 0) + 1;
             else if (choice === 'no') tally.no = (tally.no || 0) + 1;
             else tally.abstain = (tally.abstain || 0) + 1;
@@ -127,12 +164,12 @@ export default function Motions() {
 
                         <div className="replies">
                             <h3>Discussion</h3>
-                            {motion.replies.length === 0 ? (
+                            {(!motion.replies || motion.replies.length === 0) ? (
                                 <div className="no-replies">No replies yet.</div>
                             ) : (
                                 motion.replies.map((reply, idx) => (
                                     <div className="reply" key={idx}>
-                                        <strong>{reply.user} ({reply.stance}):</strong> {reply.text}
+                                        <strong>{reply.user || reply.authorUid} ({reply.stance || 'neutral'}):</strong> {reply.text || reply.message || ''}
                                     </div>
                                 ))
                             )}

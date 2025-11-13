@@ -1,5 +1,4 @@
-// File: `src/firebase/committees.js`
-/* JavaScript */
+// File: src/firebase/committees.js
 import { db, auth } from './firebase';
 import {
     collection, doc, setDoc, addDoc, updateDoc, serverTimestamp,
@@ -17,8 +16,9 @@ export async function createCommittee({ name, description, settings = {} }) {
         settings,
         createdAt: serverTimestamp()
     });
-    // add member document for owner
+    // add member document for owner - include uid field so collectionGroup queries can find members by uid
     await setDoc(doc(db, 'committees', committeeRef.id, 'members', auth.currentUser.uid), {
+        uid: auth.currentUser.uid,
         role: 'owner',
         addedAt: serverTimestamp()
     });
@@ -30,6 +30,7 @@ export async function addMemberToCommittee(committeeId, userUid, role = 'member'
     if (!auth.currentUser) throw new Error('Not signed in');
     const memberRef = doc(db, 'committees', committeeId, 'members', userUid);
     await setDoc(memberRef, {
+        uid: userUid,
         role,
         addedBy: auth.currentUser.uid,
         addedAt: serverTimestamp()

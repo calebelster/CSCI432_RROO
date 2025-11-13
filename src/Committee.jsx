@@ -1,47 +1,14 @@
-// File: `src/Committee.jsx`
-/* JavaScript (React) */
+// javascript
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './Committee.css';
 import { createMotion } from './firebase/committees';
+import { db } from './firebase/firebase';
+import { collection, doc, getDocs, query, where, onSnapshot, getDoc } from 'firebase/firestore';
 
 export default function Committee() {
     const navigate = useNavigate();
     const location = useLocation();
-
-    const defaultHomeData = {
-        committeeData: {
-            'Board of Directors': {
-                members: ['User Initial'],
-                motions: [
-                    {
-                        id: Date.now(),
-                        name: 'Motion Name',
-                        description: 'Motion Description',
-                        creator: 'Creator',
-                        date: 'Date Created',
-                        status: 'active',
-                        type: 'Main Motion',
-                        threshold: 'Simple Majority',
-                        requiresDiscussion: false,
-                    },
-                ],
-                meetings: [],
-            },
-        },
-        committees: [{ name: 'Board of Directors', description: 'Short Committee Description' }],
-        profile: { name: 'You' },
-    };
-
-    const _localHomeData = (() => {
-        try {
-            const raw = localStorage.getItem('homeData');
-            if (raw) return JSON.parse(raw);
-        } catch (e) {}
-        return null;
-    })();
-
-    const homeData = window.opener?.homeData || _localHomeData || defaultHomeData;
 
     const getCommitteeName = () => {
         const params = new URLSearchParams(location.search);
@@ -49,10 +16,9 @@ export default function Committee() {
     };
 
     const [committeeName, setCommitteeName] = useState(getCommitteeName());
-    const [committeeInfo, setCommitteeInfo] = useState(
-        (homeData.committees || []).find((c) => c.name === committeeName) || { name: committeeName, description: '' }
-    );
-    const [committeeData, setCommitteeData] = useState(homeData.committeeData[committeeName] || { members: [], motions: [], meetings: [] });
+    const [committeeInfo, setCommitteeInfo] = useState({ name: committeeName, description: '' });
+    const [committeeObj, setCommitteeObj] = useState(null); // { id, data }
+    const [committeeData, setCommitteeData] = useState({ members: [], motions: [], meetings: [] });
 
     const [activeTab, setActiveTab] = useState('motions');
     const [motionFilter, setMotionFilter] = useState('active');
@@ -64,51 +30,99 @@ export default function Committee() {
         description: '',
         threshold: 'Simple Majority',
         requiresDiscussion: false,
-        // New per-motion settings editable in modal:
         secondRequired: true,
-        discussionStyle: 'Offline', // Offline | Online
+        discussionStyle: 'Offline',
         allowAnonymous: false,
     });
     const [showInvite, setShowInvite] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [creatingMotion, setCreatingMotion] = useState(false);
-    const committeeObj = (homeData.committees || []).find((c) => c.name === committeeName) || null;
-    const inviteCode = committeeObj?.inviteCode || '';
-
-    function generateInviteCode(len = 6) {
-        const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-        let out = '';
-        for (let i = 0; i < len; i++) out += chars.charAt(Math.floor(Math.random() * Math.random() * chars.length));
-        return out;
-    }
-
-    async function copyToClipboard(text) {
-        if (!text) return;
-        try {
-            await navigator.clipboard.writeText(text);
-        } catch (e) {
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            document.body.appendChild(ta);
-            ta.select();
-            try { document.execCommand('copy'); } catch (err) { }
-            document.body.removeChild(ta);
-        }
-    }
 
     useEffect(() => {
         setCommitteeName(getCommitteeName());
     }, [location.search]);
 
+    // When committeeName changes, look up the committee doc by name
     useEffect(() => {
-        setCommitteeInfo((homeData.committees || []).find((c) => c.name === committeeName) || { name: committeeName, description: '' });
-        setCommitteeData(homeData.committeeData[committeeName] || { members: [], motions: [], meetings: [] });
+        let unsubMembers = null;
+        let unsubMotions = null;
+        async function lookup() {
+            setCommitteeObj(null);
+            setCommitteeData({ members: [], motions: [], meetings: [] });
+            try {
+                const q = query(collection(db, 'committees'), where('name', '==', committeeName));
+                const snaps = await getDocs(q);
+                if (snaps.empty) {
+                    // fallback to localStorage if present
+                    try {
+                        const raw = localStorage.getItem('homeData');
+                        if (raw) {
+                            const parsed = JSON.parse(raw);
+                            const localCommittee = (parsed.committees || []).find(c => c.name === committeeName) || { name: committeeName, description: '' };
+                            const localData = parsed.committeeData ? parsed.committeeData[committeeName] : { members: [], motions: [], meetings: [] };
+                            setCommitteeInfo(localCommittee);
+                            setCommitteeData(localData || { members: [], motions: [], meetings: [] });
+                        } else {
+                            setCommitteeInfo({ name: committeeName, description: '' });
+                        }
+                        return;
+                    } catch (e) { console.warn(e); }
+                }
+
+                // use first matching committee
+                const docSnap = snaps.docs[0];
+                const committeeId = docSnap.id;
+                const data = docSnap.data();
+                setCommitteeObj({ id: committeeId, data });
+                setCommitteeInfo({ name: data.name, description: data.description });
+
+                // listen members
+                const membersCol = collection(db, 'committees', committeeId, 'members');
+                unsubMembers = onSnapshot(membersCol, (msnap) => {
+                    const members = msnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+                    setCommitteeData(prev => ({ ...prev, members }));
+                });
+
+                // listen motions
+                const motionsCol = collection(db, 'committees', committeeId, 'motions');
+                unsubMotions = onSnapshot(motionsCol, (msnap) => {
+                    const motions = msnap.docs.map(d => {
+                        const md = d.data();
+                        return {
+                            id: d.id,
+                            name: md.title || md.name || 'Untitled Motion',
+                            description: md.description || '',
+                            creator: md.creatorUid || md.creator || '',
+                            date: md.createdAt && md.createdAt.toDate ? new Date(md.createdAt.toDate()).toLocaleDateString() : '',
+                            status: md.status || 'active',
+                            type: md.type || '',
+                            threshold: md.threshold || '',
+                            requiresDiscussion: !!md.requiresDiscussion,
+                            secondRequired: !!md.secondRequired,
+                            discussionStyle: md.discussionStyle || 'Offline',
+                            anonymousVotes: !!md.anonymousVotes,
+                            tally: md.tally || { yes: 0, no: 0, abstain: 0 }
+                        };
+                    }).sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+                    setCommitteeData(prev => ({ ...prev, motions }));
+                });
+
+            } catch (err) {
+                console.warn('committee lookup failed', err);
+            }
+        }
+        lookup();
+
+        return () => {
+            if (unsubMembers) unsubMembers();
+            if (unsubMotions) unsubMotions();
+        };
     }, [committeeName]);
 
     function openModal() {
-        // If committee has default settings, prefill them
-        const defaults = committeeObj?.settings || {};
+        // prefill defaults from committee settings if known
+        const defaults = committeeObj?.data?.settings || {};
         setForm((prev) => ({
             ...prev,
             secondRequired: defaults.secondRequired ?? prev.secondRequired,
@@ -131,12 +145,11 @@ export default function Committee() {
             threshold: form.threshold,
             anonymousVotes: !!form.allowAnonymous,
             requiresDiscussion: !!form.requiresDiscussion,
-            // include the per-motion settings so they are stored on the motion doc
             secondRequired: !!form.secondRequired,
             discussionStyle: form.discussionStyle || 'Offline',
         };
 
-        const committeeId = committeeObj?.id || committeeName; // use stored id if available, otherwise fallback to name
+        const committeeId = committeeObj?.id || committeeName;
         setCreatingMotion(true);
         let motionId = null;
         try {
@@ -147,48 +160,34 @@ export default function Committee() {
             setCreatingMotion(false);
         }
 
-        const newMotion = {
-            id: motionId || Date.now() + Math.floor(Math.random() * 10000),
-            name: motionPayload.title,
-            description: motionPayload.description,
-            creator: homeData.profile?.name || 'You',
-            date: new Date().toLocaleDateString(),
-            status: 'active',
-            type: motionPayload.type,
-            threshold: motionPayload.threshold,
-            requiresDiscussion: !!motionPayload.requiresDiscussion,
-            secondRequired: motionPayload.secondRequired,
-            discussionStyle: motionPayload.discussionStyle,
-            anonymousVotes: motionPayload.anonymousVotes,
-        };
-
-        setCommitteeData((prev) => {
-            const updated = { ...prev, motions: [newMotion, ...(prev.motions || [])] };
-
-            try {
-                if (window.opener && window.opener.homeData) {
-                    window.opener.homeData.committeeData = window.opener.homeData.committeeData || {};
-                    window.opener.homeData.committeeData[committeeName] = updated;
-                    try { window.opener.localStorage.setItem('homeData', JSON.stringify(window.opener.homeData)); } catch (err) { }
-                }
-            } catch (e) {}
-
+        // If Firestore worked, the onSnapshot will insert motion. If not, add local fallback entry
+        if (!motionId) {
+            const newMotion = {
+                id: Date.now() + Math.floor(Math.random() * 10000),
+                name: motionPayload.title,
+                description: motionPayload.description,
+                creator: 'You',
+                date: new Date().toLocaleDateString(),
+                status: 'active',
+                type: motionPayload.type,
+                threshold: motionPayload.threshold,
+                requiresDiscussion: !!motionPayload.requiresDiscussion,
+                secondRequired: motionPayload.secondRequired,
+                discussionStyle: motionPayload.discussionStyle,
+                anonymousVotes: motionPayload.anonymousVotes,
+            };
+            setCommitteeData(prev => ({ ...prev, motions: [newMotion, ...(prev.motions || [])] }));
             try {
                 const raw = localStorage.getItem('homeData');
                 if (raw) {
                     const parsed = JSON.parse(raw);
                     parsed.committeeData = parsed.committeeData || {};
-                    parsed.committeeData[committeeName] = updated;
+                    parsed.committeeData[committeeName] = parsed.committeeData[committeeName] || { members: [], motions: [] };
+                    parsed.committeeData[committeeName].motions = [newMotion, ...(parsed.committeeData[committeeName].motions || [])];
                     localStorage.setItem('homeData', JSON.stringify(parsed));
-                } else {
-                    const pd = { committees: [], committeeData: {} };
-                    pd.committeeData[committeeName] = updated;
-                    try { localStorage.setItem('homeData', JSON.stringify(pd)); } catch (err) { }
                 }
             } catch (err) {}
-
-            return updated;
-        });
+        }
 
         closeModal();
         setActiveTab('motions');
@@ -215,12 +214,6 @@ export default function Committee() {
 
     function performDelete() {
         try {
-            if (window.opener && window.opener.homeData) {
-                const hd = window.opener.homeData;
-                hd.committees = (hd.committees || []).filter(c => c.name !== committeeName);
-                if (hd.committeeData && hd.committeeData[committeeName]) delete hd.committeeData[committeeName];
-                try { window.opener.localStorage.setItem('homeData', JSON.stringify(hd)); } catch (e) { }
-            }
             const raw = localStorage.getItem('homeData');
             if (raw) {
                 const parsed = JSON.parse(raw);
@@ -302,9 +295,9 @@ export default function Committee() {
                             </thead>
                             <tbody>
                             {(committeeData.members || []).map((member, idx) => (
-                                <tr key={idx}>
-                                    <td className="member-name">{member}</td>
-                                    <td className="member-pos">Member</td>
+                                <tr key={member.uid || idx}>
+                                    <td className="member-name">{member.displayName || member.uid}</td>
+                                    <td className="member-pos">{member.role || 'Member'}</td>
                                 </tr>
                             ))}
                             </tbody>
@@ -363,7 +356,6 @@ export default function Committee() {
                                 </div>
                             </div>
 
-                            {/* Per-motion editable settings */}
                             <div className="committee-settings">
                                 <div className="settings-title">Motion Settings</div>
                                 <div className="settings-list">
@@ -422,14 +414,7 @@ export default function Committee() {
                             <label>Shareable Link</label>
                             <div className="invite-box">
                                 <input readOnly value={(window.location.origin || '') + '/committee?name=' + encodeURIComponent(committeeName)} />
-                                <button onClick={() => copyToClipboard((window.location.origin || '') + '/committee?name=' + encodeURIComponent(committeeName))}>Copy</button>
-                            </div>
-                        </div>
-                        <div className="invite-row">
-                            <label>Invite Code</label>
-                            <div className="invite-box">
-                                <input readOnly value={inviteCode || generateInviteCode()} />
-                                <button onClick={() => copyToClipboard(inviteCode || generateInviteCode())}>Copy</button>
+                                <button onClick={() => navigator.clipboard && navigator.clipboard.writeText((window.location.origin || '') + '/committee?name=' + encodeURIComponent(committeeName))}>Copy</button>
                             </div>
                         </div>
                     </div>
