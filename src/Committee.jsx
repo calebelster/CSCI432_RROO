@@ -57,6 +57,34 @@ export default function Committee() {
     threshold: 'Simple Majority',
     requiresDiscussion: false,
   });
+  const [showInvite, setShowInvite] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // try to find an invite code stored on the committee (HomePage stores inviteCode at creation)
+  const committeeObj = (homeData.committees || []).find((c) => c.name === committeeName) || null;
+  const inviteCode = committeeObj?.inviteCode || '';
+
+  function generateInviteCode(len = 6) {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let out = '';
+    for (let i = 0; i < len; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
+    return out;
+  }
+
+  async function copyToClipboard(text) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (err) { }
+      document.body.removeChild(ta);
+    }
+  }
 
   useEffect(() => {
     // update when location.search changes
@@ -115,6 +143,27 @@ export default function Committee() {
     navigate(`/motions?id=${motion.id}`);
   }
 
+  function performDelete() {
+    // remove from window.opener.homeData if available (older flow), otherwise from localStorage
+    try {
+      if (window.opener && window.opener.homeData) {
+        const hd = window.opener.homeData;
+        hd.committees = (hd.committees || []).filter(c => c.name !== committeeName);
+        if (hd.committeeData && hd.committeeData[committeeName]) delete hd.committeeData[committeeName];
+        try { window.opener.localStorage.setItem('homeData', JSON.stringify(hd)); } catch (e) {}
+      }
+      // localStorage path
+      const raw = localStorage.getItem('homeData');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        parsed.committees = (parsed.committees || []).filter(c => c.name !== committeeName);
+        if (parsed.committeeData && parsed.committeeData[committeeName]) delete parsed.committeeData[committeeName];
+        localStorage.setItem('homeData', JSON.stringify(parsed));
+      }
+    } catch (e) { /* ignore */ }
+    navigate('/home');
+  }
+
   return (
     <div className="committee-container">
       <div className="committee-header-bar">
@@ -125,7 +174,18 @@ export default function Committee() {
             <p id="committee-desc">{committeeInfo.description}</p>
           </div>
         </div>
-        <button className="new-motion-btn" onClick={openModal}><span className="plus">+</span> New Motion</button>
+        <div className="committee-header-right">
+          <button className="invite-btn" onClick={() => setShowInvite(true)}>Invite Members</button>
+          <button className="new-motion-btn" onClick={openModal}><span className="plus">+</span> New Motion</button>
+          <div className="more-container">
+            <button className="more-btn" onClick={() => setShowMenu((s) => !s)}>⋯</button>
+            {showMenu && (
+              <div className="more-menu-dropdown">
+                <button className="more-item" onClick={() => { setConfirmDelete(true); setShowMenu(false); }}>Delete Committee</button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="tab-bar">
@@ -242,6 +302,41 @@ export default function Committee() {
                 <button type="submit" className="modal-create">Create Motion</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {confirmDelete && (
+        <div className="confirm-overlay" onClick={(e) => { if (e.target.className && e.target.className.includes('confirm-overlay')) setConfirmDelete(false); }}>
+          <div className="confirm-content">
+            <h3>Delete committee?</h3>
+            <p>Are you sure you want to delete "{committeeName}"? This will remove all local data for this committee.</p>
+            <div className="confirm-actions">
+              <button className="confirm-cancel" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              <button className="confirm-delete" onClick={() => { setConfirmDelete(false); performDelete(); }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showInvite && (
+        <div className="invite-overlay" onClick={(e) => { if (e.target.className && e.target.className.includes('invite-overlay')) setShowInvite(false); }}>
+          <div className="invite-content">
+            <button className="modal-close" onClick={() => setShowInvite(false)}>&times;</button>
+            <h3>Invite Members</h3>
+            <p>Share a link to this committee or give collaborators the invite code.</p>
+            <div className="invite-row">
+              <label>Shareable Link</label>
+              <div className="invite-box">
+                <input readOnly value={(window.location.origin || '') + '/committee?name=' + encodeURIComponent(committeeName)} />
+                <button onClick={() => copyToClipboard((window.location.origin || '') + '/committee?name=' + encodeURIComponent(committeeName))}>Copy</button>
+              </div>
+            </div>
+            <div className="invite-row">
+              <label>Invite Code</label>
+              <div className="invite-box">
+                <input readOnly value={inviteCode || generateInviteCode()} />
+                <button onClick={() => copyToClipboard(inviteCode || generateInviteCode())}>Copy</button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -13,6 +13,7 @@ import Footer from './Footer.jsx'
 import HomePage from './HomePage.jsx'
 import Committee from './Committee.jsx'
 import Motions from './Motions.jsx'
+import Profile from './Profile.jsx'
 
 import './index.css'
 
@@ -39,6 +40,7 @@ function App() {
                         <Route path="/home" element={<HomePage currentUser={currentUser} />} />
                         <Route path="/committee" element={<Committee currentUser={currentUser} />} />
                         <Route path="/motions" element={<Motions currentUser={currentUser} />} />
+                        <Route path="/profile" element={<Profile currentUser={currentUser} />} />
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/signup" element={<SignUpPage />} />
                         <Route path="*" element={<div>404 Not Found</div>} />

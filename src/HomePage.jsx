@@ -33,6 +33,8 @@ function HomePage({ currentUser }) {
     const [modalOpen, setModalOpen] = useState(false);
     const [newCommittee, setNewCommittee] = useState({ name: '', description: '' });
     const [modalError, setModalError] = useState('');
+    const [openMenuFor, setOpenMenuFor] = useState(null);
+    const [confirmDeleteFor, setConfirmDeleteFor] = useState(null);
 
     // persist homeData to localStorage whenever it changes
     useEffect(() => {
@@ -96,10 +98,28 @@ function HomePage({ currentUser }) {
         }, 80);
     }
 
+    
+
     function enterCommittee(committee) {
         const committeeName = encodeURIComponent(committee.name);
         // navigate to the React Committee route with query param
         navigate(`/committee?name=${committeeName}`);
+    }
+
+    function handleDeleteCommittee(committee) {
+        const ok = window.confirm(`Delete committee "${committee.name}"? This will remove all local data for this committee.`);
+        if (!ok) return;
+        setHomeData(prev => {
+            const committees = (prev.committees || []).filter(c => c.name !== committee.name);
+            const committeeData = { ...prev.committeeData };
+            if (committeeData[committee.name]) delete committeeData[committee.name];
+            const stats = [...prev.stats];
+            stats[0] = { ...stats[0], value: committees.length };
+            const out = { ...prev, committees, committeeData, stats };
+            // persist immediately
+            try { localStorage.setItem('homeData', JSON.stringify(out)); } catch (e) {}
+            return out;
+        });
     }
 
     return (
@@ -109,7 +129,7 @@ function HomePage({ currentUser }) {
                     <img src="/gavel_logo.png" alt="logo" />
                     <span>Robert Rules of Order</span>
                 </div>
-                <div className="user-info">{homeData.profile.name}</div>
+                <div className="user-info" onClick={() => navigate('/profile')} title="Edit profile" style={{ cursor: 'pointer' }}>{homeData.profile.name}</div>
             </header>
 
             <main>
@@ -136,15 +156,27 @@ function HomePage({ currentUser }) {
                         {homeData.committees.map((committee, idx) => (
                             <div className="committee-card" key={idx}>
                                 <div>
-                                    <div className="committee-header">
-                                        <h3>{committee.name}</h3>
-                                        <span className="member-tag">{committee.role}</span>
+                                    <div className="committee-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            <h3>{committee.name}</h3>
+                                            <span className="member-tag">{committee.role}</span>
+                                        </div>
+                                        <div className="card-more">
+                                            <button className="more-btn" onClick={() => setOpenMenuFor(openMenuFor === committee.name ? null : committee.name)}>⋯</button>
+                                            {openMenuFor === committee.name && (
+                                                <div className="more-menu-dropdown">
+                                                    <button className="more-item" onClick={() => { setConfirmDeleteFor(committee.name); setOpenMenuFor(null); }}>Delete</button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                     <p className="committee-description">{committee.description}</p>
                                 </div>
                                 <div className="committee-footer">
                                     <span className="date">{committee.date}</span>
-                                    <button className="enter-button" onClick={() => enterCommittee(committee)}>Enter</button>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <button className="enter-button" onClick={() => enterCommittee(committee)}>Enter</button>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -183,6 +215,19 @@ function HomePage({ currentUser }) {
                     </div>
                 </div>
             )}
+            {confirmDeleteFor && (
+                <div className="confirm-overlay" onClick={(e) => { if (e.target.className && e.target.className.includes('confirm-overlay')) setConfirmDeleteFor(null); }}>
+                    <div className="confirm-content">
+                        <h3>Delete committee?</h3>
+                        <p>Are you sure you want to delete "{confirmDeleteFor}"? This will remove all local data for this committee.</p>
+                        <div className="confirm-actions">
+                            <button className="confirm-cancel" onClick={() => setConfirmDeleteFor(null)}>Cancel</button>
+                            <button className="confirm-delete" onClick={() => { const committeeObj = homeData.committees.find(c => c.name === confirmDeleteFor); if (committeeObj) { handleDeleteCommittee(committeeObj); } setConfirmDeleteFor(null); }}>Delete</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
         </div>
     );
 }
