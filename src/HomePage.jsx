@@ -3,7 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './HomePage.css';
 import { createCommittee } from './firebase/committees';
-import { db } from './firebase/firebase';
+import { db, auth } from './firebase/firebase';
+import { signOut } from 'firebase/auth';
 import { collectionGroup, query, where, onSnapshot, getDoc } from 'firebase/firestore';
 
 function HomePage({ currentUser }) {
@@ -14,7 +15,7 @@ function HomePage({ currentUser }) {
         try {
             const raw = localStorage.getItem('homeData');
             if (raw) return JSON.parse(raw);
-        } catch (e) {}
+        } catch (e) { }
         return {
             profile: { name: 'Profile Name' },
             stats: [
@@ -32,13 +33,14 @@ function HomePage({ currentUser }) {
     const [modalError, setModalError] = useState('');
     const [openMenuFor, setOpenMenuFor] = useState(null);
     const [confirmDeleteFor, setConfirmDeleteFor] = useState(null);
+    const [showUserMenu, setShowUserMenu] = useState(false);
     const [creating, setCreating] = useState(false);
 
     // Persist to localStorage whenever homeData changes
     useEffect(() => {
         try {
             localStorage.setItem('homeData', JSON.stringify(homeData));
-        } catch (e) {}
+        } catch (e) { }
     }, [homeData]);
 
     // Redirect if not signed in, and update profile name
@@ -155,7 +157,7 @@ function HomePage({ currentUser }) {
             const out = { ...prev, committees, committeeData, stats };
             try {
                 localStorage.setItem('homeData', JSON.stringify(out));
-            } catch (e) {}
+            } catch (e) { }
             return out;
         });
 
@@ -184,10 +186,24 @@ function HomePage({ currentUser }) {
             const out = { ...prev, committees, committeeData, stats };
             try {
                 localStorage.setItem('homeData', JSON.stringify(out));
-            } catch (e) {}
+            } catch (e) { }
             return out;
         });
     }
+
+    // close user menu when clicking outside
+    React.useEffect(() => {
+        function onDocClick(e) {
+            const el = document.querySelector('.user-info');
+            const menu = document.querySelector('.user-menu-dropdown');
+            if (!el) return;
+            if (el.contains(e.target)) return; // clicked on user-info
+            if (menu && menu.contains(e.target)) return; // clicked inside menu
+            setShowUserMenu(false);
+        }
+        document.addEventListener('click', onDocClick);
+        return () => document.removeEventListener('click', onDocClick);
+    }, []);
 
     return (
         <div className="container">
@@ -198,11 +214,38 @@ function HomePage({ currentUser }) {
                 </div>
                 <div
                     className="user-info"
-                    onClick={() => navigate('/profile')}
-                    title="Edit profile"
-                    style={{ cursor: 'pointer' }}
+                    onClick={() => setShowUserMenu(s => !s)}
+                    title="User menu"
+                    style={{ cursor: 'pointer', position: 'relative' }}
                 >
                     {homeData.profile.name}
+                    {showUserMenu && (
+                        <div className="user-menu-dropdown">
+                            <button
+                                className="user-menu-item"
+                                onClick={() => {
+                                    setShowUserMenu(false);
+                                    navigate('/profile');
+                                }}
+                            >
+                                Profile
+                            </button>
+                            <button
+                                className="user-menu-item"
+                                onClick={async () => {
+                                    try {
+                                        await signOut(auth);
+                                    } catch (e) {
+                                        console.warn('signOut failed', e);
+                                    }
+                                    setShowUserMenu(false);
+                                    navigate('/');
+                                }}
+                            >
+                                Log out
+                            </button>
+                        </div>
+                    )}
                 </div>
             </header>
 

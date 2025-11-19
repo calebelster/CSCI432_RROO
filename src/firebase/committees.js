@@ -1,5 +1,6 @@
 // File: src/firebase/committees.js
 import { db, auth } from './firebase';
+import { updateProfile as fbUpdateProfile } from 'firebase/auth';
 import {
     collection, doc, setDoc, addDoc, updateDoc, serverTimestamp,
     getDoc, getDocs, runTransaction, query, where
@@ -156,11 +157,37 @@ export async function proposeOverturn(committeeId, originalMotionId, { title, de
 /* Utility: change user display name (also write to users collection for quick access) */
 export async function updateDisplayName(newName) {
     if (!auth.currentUser) throw new Error('Not signed in');
-    // Firebase Auth update on client
-    await auth.currentUser.updateProfile && auth.currentUser.updateProfile({ displayName: newName }).catch(() => {});
+    // Firebase Auth update on client (modular API)
+    try {
+        await fbUpdateProfile(auth.currentUser, { displayName: newName });
+    } catch (e) {
+        // ignore if client/profile update not supported
+    }
     // Mirror into Firestore users doc
     await setDoc(doc(db, 'users', auth.currentUser.uid), {
         displayName: newName,
         updatedAt: serverTimestamp()
     }, { merge: true });
+}
+
+/* Update full user profile fields and mirror into users collection.
+   `profile` can include: displayName, photoURL, bio, phone, address, etc.
+*/
+export async function updateUserProfile(profile = {}) {
+    if (!auth.currentUser) throw new Error('Not signed in');
+    const toAuth = {};
+    if (profile.displayName) toAuth.displayName = profile.displayName;
+    if (profile.photoURL) toAuth.photoURL = profile.photoURL;
+    if (Object.keys(toAuth).length) {
+        try {
+            await fbUpdateProfile(auth.currentUser, toAuth);
+        } catch (e) {
+            // ignore client update errors
+        }
+    }
+    const userDoc = {
+        ...profile,
+        updatedAt: serverTimestamp()
+    };
+    await setDoc(doc(db, 'users', auth.currentUser.uid), userDoc, { merge: true });
 }
