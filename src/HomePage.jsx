@@ -36,6 +36,15 @@ function HomePage({ currentUser }) {
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [creating, setCreating] = useState(false);
 
+    function getInitials(name) {
+        const raw = name || (currentUser && (currentUser.displayName || currentUser.email)) || '';
+        const parts = raw.trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return 'U';
+        if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+        // multiple words: use first letter of first two words
+        return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+    }
+
     // Persist to localStorage whenever homeData changes
     useEffect(() => {
         try {
@@ -218,7 +227,9 @@ function HomePage({ currentUser }) {
                     title="User menu"
                     style={{ cursor: 'pointer', position: 'relative' }}
                 >
-                    {homeData.profile.name}
+                    <div className="header-avatar" aria-hidden>
+                        <span className="avatar-initials">{getInitials(homeData.profile?.name || (currentUser && (currentUser.displayName || currentUser.email)))}</span>
+                    </div>
                     {showUserMenu && (
                         <div className="user-menu-dropdown">
                             <button
