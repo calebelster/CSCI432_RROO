@@ -141,6 +141,95 @@ button {
 	color: var(--text)
 }
 
+.members-count {
+	color: rgba(0,0,0,0.6);
+	margin-bottom: 18px;
+}
+
+.members-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.member-card {
+	display: flex;
+	gap: 16px;
+	align-items: center;
+	background: #fff;
+	border-radius: 12px;
+	padding: 18px;
+	box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+	border: 1px solid rgba(0,0,0,0.06);
+}
+
+.member-avatar {
+	width: 56px;
+	height: 56px;
+	border-radius: 50%;
+	background: #f0f0f0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 700;
+	color: #222;
+	font-size: 18px;
+}
+
+.member-info {
+	display: flex;
+	flex-direction: column;
+}
+
+.member-top {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+}
+
+.member-name-large {
+	font-weight: 700;
+	font-size: 1.05rem;
+	color: #111;
+}
+
+.member-role {
+	margin-left: auto;
+}
+
+.role-badge {
+	display: inline-block;
+	padding: 6px 10px;
+	border-radius: 999px;
+	background: rgba(0,0,0,0.08);
+	color: #111;
+	font-weight: 600;
+	font-size: 0.9rem;
+}
+
+.role-badge.owner { background: #0a1220; color: #fff }
+.role-badge.chair { background: #222; color: #fff }
+.role-badge.member { background: rgba(0,0,0,0.06); color: #111 }
+.role-badge.observer { background: rgba(0,0,0,0.03); color: #111 }
+
+.role-select {
+	padding: 6px 10px;
+	border-radius: 8px;
+	border: 1px solid rgba(0,0,0,0.08);
+	background: #fff;
+}
+
+.member-email {
+	color: rgba(0,0,0,0.6);
+	margin-top: 6px;
+}
+
+.member-joined {
+	color: rgba(0,0,0,0.5);
+	margin-top: 4px;
+	font-size: 0.95rem;
+}
+
 .motion-filters {
 	/* Use a pill track like the main tab-bar but left-aligned within the motions area */
 	display: inline-flex;
