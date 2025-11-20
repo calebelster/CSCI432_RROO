@@ -1,7 +1,7 @@
 // javascript
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import './motions.css';
+import './Motions.css';
 import { replyToMotion, castVote } from './firebase/committees';
 import { db } from './firebase/firebase';
 import { collection, onSnapshot, doc, getDocs } from 'firebase/firestore';
