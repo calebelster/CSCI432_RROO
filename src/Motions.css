@@ -54,11 +54,20 @@ body {
 
 .replies {
     margin-top: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.replies h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
 }
 
 .reply {
-    padding: 8px 0;
-    border-top: 1px solid rgba(0, 0, 0, 0.04);
+    padding: 2px;
+    border-top: 2px solid rgba(0, 0, 0, 0.1);
+    margin: 0;
 }
 
 .no-replies {
@@ -187,4 +196,16 @@ h1 {
 .no-replies {
     color: #666;
     margin-bottom: 8px;
+}
+
+.voting {
+    margin-top: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.voting h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
 }

@@ -14,20 +14,19 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged(auth, initalizedUser);
+        // Use the modular API: onAuthStateChanged(auth, callback)
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                setCurrentUser(user);
+                setUserLoggedIn(true);
+            } else {
+                setCurrentUser(null);
+                setUserLoggedIn(false);
+            }
+            setLoading(false);
+        });
         return unsubscribe;
-    }, [])
-
-    async function initalizedUser(user) {
-        if (user) {
-            setCurrentUser(...user);
-            setUserLoggedIn(true);
-        } else {
-            setCurrentUser(null);
-            setUserLoggedIn(false);
-        }
-        setLoading(false);
-    }
+    }, []);
     const value = {
         currentUser,
         userLoggedIn,

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './Profile.css';
 import { auth } from './firebase/firebase';
 import { updateProfile } from 'firebase/auth';
+import { updateDisplayName } from './firebase/committees';
 
 export default function Profile({ currentUser }) {
   const navigate = useNavigate();
@@ -12,14 +13,8 @@ export default function Profile({ currentUser }) {
   useEffect(() => {
     if (currentUser) setName(currentUser.displayName || currentUser.email || '');
     else {
-      // try reading from localStorage homeData as fallback
-      try {
-        const raw = localStorage.getItem('homeData');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && parsed.profile && parsed.profile.name) setName(parsed.profile.name);
-        }
-      } catch (e) {}
+      // no local fallback — leave empty if not signed in
+      setName('');
     }
   }, [currentUser]);
 
@@ -30,17 +25,11 @@ export default function Profile({ currentUser }) {
       if (auth.currentUser) {
         await updateProfile(auth.currentUser, { displayName: name });
       }
-      // update local homeData if present for immediate UI consistency
+      // mirror into Firestore users collection (server copy)
       try {
-        const raw = localStorage.getItem('homeData');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          parsed.profile = parsed.profile || {};
-          parsed.profile.name = name;
-          localStorage.setItem('homeData', JSON.stringify(parsed));
-        }
+        await updateDisplayName(name);
       } catch (e) {
-        // ignore
+        console.warn('Failed to update display name in Firestore:', e?.message || e);
       }
       setStatus('Saved');
       setTimeout(() => setStatus(''), 1600);

@@ -1,49 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './Committee.css';
+import { createMotion as fbCreateMotion, getCommitteeByName, getCommitteeById, getUserCommitteeById, getUserCommitteeByName, deleteCommittee as fbDeleteCommittee } from './firebase/committees';
 
 // Committee React component converted from static committee page
-export default function Committee() {
+export default function Committee({ currentUser }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // source data fallback (mimics original window.opener.homeData)
-  const defaultHomeData = {
-    committeeData: {
-      'Board of Directors': {
-        members: ['User Initial'],
-        motions: [
-          {
-            id: Date.now(),
-            name: 'Motion Name',
-            description: 'Motion Description',
-            creator: 'Creator',
-            date: 'Date Created',
-            status: 'active',
-            type: 'Main Motion',
-            threshold: 'Simple Majority',
-            requiresDiscussion: false,
-          },
-        ],
-        meetings: [],
-      },
-    },
-    committees: [{ name: 'Board of Directors', description: 'Short Committee Description' }],
-    profile: { name: 'You' },
-  };
-
-  // Prefer a persisted homeData from localStorage so motions and committees persist across reloads
-  const _localHomeData = (() => {
-    try {
-      const raw = localStorage.getItem('homeData');
-      if (raw) return JSON.parse(raw);
-    } catch (e) {
-      // ignore
-    }
-    return null;
-  })();
-
-  const homeData = window.opener?.homeData || _localHomeData || defaultHomeData;
+  // const _localHomeData = (() => {
+  //   try {
+  //     const raw = localStorage.getItem('homeData');
+  //     if (raw) return JSON.parse(raw);
+  //   } catch (e) {
+  //     // ignore
+  //   }
+  //   return null;
+  // })();
 
   const getCommitteeName = () => {
     const params = new URLSearchParams(location.search);
@@ -51,10 +24,8 @@ export default function Committee() {
   };
 
   const [committeeName, setCommitteeName] = useState(getCommitteeName());
-  const [committeeInfo, setCommitteeInfo] = useState(
-    (homeData.committees || []).find((c) => c.name === committeeName) || { name: committeeName, description: '' }
-  );
-  const [committeeData, setCommitteeData] = useState(homeData.committeeData[committeeName] || { members: [], motions: [], meetings: [] });
+  const [committeeInfo, setCommitteeInfo] = useState({ name: committeeName, description: '' });
+  const [committeeData, setCommitteeData] = useState({ members: [], motions: [], meetings: [] });
 
   const [activeTab, setActiveTab] = useState('motions');
   const [motionFilter, setMotionFilter] = useState('active');
@@ -67,14 +38,15 @@ export default function Committee() {
     description: '',
     threshold: 'Simple Majority',
     requiresDiscussion: false,
+    secondRequired: true,
+    discussionStyle: 'Offline',
+    allowAnonymous: false,
   });
   const [showInvite, setShowInvite] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // try to find an invite code stored on the committee (HomePage stores inviteCode at creation)
-  const committeeObj = (homeData.committees || []).find((c) => c.name === committeeName) || null;
-  const inviteCode = committeeObj?.inviteCode || '';
+  const inviteCode = '';
 
   function generateInviteCode(len = 6) {
     const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -102,10 +74,35 @@ export default function Committee() {
     setCommitteeName(getCommitteeName());
   }, [location.search]);
 
+  // Try to hydrate committee data from Firestore using the committee name or id
   useEffect(() => {
-    setCommitteeInfo((homeData.committees || []).find((c) => c.name === committeeName) || { name: committeeName, description: '' });
-    setCommitteeData(homeData.committeeData[committeeName] || { members: [], motions: [], meetings: [] });
-  }, [committeeName]);
+    (async () => {
+      try {
+        const params = new URLSearchParams(location.search);
+        const nameParam = params.get('name');
+        const idParam = params.get('id');
+        let server = null;
+        // Prefer per-user committee lookups when signed in, fall back to top-level collections
+        if (idParam) {
+          if (currentUser?.uid) {
+            server = await getUserCommitteeById(currentUser.uid, decodeURIComponent(idParam));
+          }
+          if (!server) server = await getCommitteeById(decodeURIComponent(idParam));
+        } else if (nameParam) {
+          if (currentUser?.uid) {
+            server = await getUserCommitteeByName(currentUser.uid, decodeURIComponent(nameParam));
+          }
+          if (!server) server = await getCommitteeByName(decodeURIComponent(nameParam));
+        }
+        if (server) {
+          setCommitteeInfo({ name: server.name, description: server.description || '', id: server.id, ownerUid: server.ownerUid || currentUser?.uid });
+          setCommitteeData({ members: (server.members || []).map(m => m.uid || m.id || m), motions: (server.motions || []).map(m => ({ id: m.id, name: m.title || m.name || '', description: m.description || '', creator: m.creatorUid || '', date: m.createdAt ? (m.createdAt.toDate ? m.createdAt.toDate().toLocaleDateString() : new Date(m.createdAt).toLocaleDateString()) : '', status: m.status || 'active', type: m.type || '', threshold: m.threshold || '' })), meetings: [] });
+        }
+      } catch (err) {
+        console.warn('Failed to load committee from Firestore:', err?.message || err);
+      }
+    })();
+  }, [location.search, currentUser]);
 
   function openModal() {
     setShowModal(true);
@@ -121,51 +118,40 @@ export default function Committee() {
       id: Date.now() + Math.floor(Math.random() * 10000),
       name: form.title || 'Untitled Motion',
       description: form.description || '',
-      creator: homeData.profile?.name || 'You',
+      creator: currentUser?.displayName || 'You',
       date: new Date().toLocaleDateString(),
       status: 'active',
       type: form.type,
       threshold: form.threshold,
       requiresDiscussion: !!form.requiresDiscussion,
     };
-    // update local state
-    setCommitteeData((prev) => {
-      const updated = { ...prev, motions: [newMotion, ...(prev.motions || [])] };
-
-      // persist to opener window if available (legacy flow)
+    // persist to Firestore (no local fallback). Require committee id (from committeeInfo).
+    (async () => {
       try {
-        if (window.opener && window.opener.homeData) {
-          window.opener.homeData.committeeData = window.opener.homeData.committeeData || {};
-          window.opener.homeData.committeeData[committeeName] = updated;
-          try { window.opener.localStorage.setItem('homeData', JSON.stringify(window.opener.homeData)); } catch (err) { /* ignore */ }
-        }
-      } catch (e) {
-        // ignore cross-origin or other opener issues
-      }
-
-      // persist to this window's localStorage so data remains across reloads
-      try {
-        const raw = localStorage.getItem('homeData');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          parsed.committeeData = parsed.committeeData || {};
-          parsed.committeeData[committeeName] = updated;
-          localStorage.setItem('homeData', JSON.stringify(parsed));
-        } else {
-          // create a small homeData container if none exists
-          const pd = { committees: [], committeeData: {} };
-          pd.committeeData[committeeName] = updated;
-          try { localStorage.setItem('homeData', JSON.stringify(pd)); } catch (err) { /* ignore */ }
-        }
+        const committeeId = committeeInfo?.id;
+        const ownerUid = committeeInfo?.ownerUid || currentUser?.uid;
+        if (!committeeId) throw new Error('Committee has no server id; cannot create motion');
+        const motionPayload = {
+          title: newMotion.name,
+          description: newMotion.description,
+          type: newMotion.type,
+          threshold: newMotion.threshold,
+          anonymousVotes: false,
+          secondRequired: false,
+          discussionStyle: 'offline'
+        };
+        const persistedMotionId = await fbCreateMotion(committeeId, motionPayload, ownerUid);
+        newMotion.id = persistedMotionId;
+        setCommitteeData((prev) => ({ ...prev, motions: [newMotion, ...(prev.motions || [])] }));
       } catch (err) {
-        // ignore storage errors
+        console.error('Failed to create motion:', err);
+        alert('Failed to create motion: ' + (err?.message || err));
+        return;
       }
-
-      return updated;
-    });
-    closeModal();
-    setActiveTab('motions');
-    setMotionFilter('active');
+      closeModal();
+      setActiveTab('motions');
+      setMotionFilter('active');
+    })();
   }
 
   const filteredMotions = (committeeData.motions || []).filter((m) => {
@@ -191,24 +177,24 @@ export default function Committee() {
   }
 
   function performDelete() {
-    // remove from window.opener.homeData if available (older flow), otherwise from localStorage
-    try {
-      if (window.opener && window.opener.homeData) {
-        const hd = window.opener.homeData;
-        hd.committees = (hd.committees || []).filter(c => c.name !== committeeName);
-        if (hd.committeeData && hd.committeeData[committeeName]) delete hd.committeeData[committeeName];
-        try { window.opener.localStorage.setItem('homeData', JSON.stringify(hd)); } catch (e) { }
+    // delete committee from server
+    (async () => {
+      try {
+        const id = committeeInfo?.id;
+        if (!id) {
+          // try to resolve by name
+          const server = await getCommitteeByName(committeeName);
+          if (!server || !server.id) throw new Error('Committee not found on server');
+          await fbDeleteCommittee(server.id);
+        } else {
+          await fbDeleteCommittee(id);
+        }
+        navigate('/home');
+      } catch (err) {
+        console.error('Failed to delete committee:', err);
+        alert('Failed to delete committee: ' + (err?.message || err));
       }
-      // localStorage path
-      const raw = localStorage.getItem('homeData');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        parsed.committees = (parsed.committees || []).filter(c => c.name !== committeeName);
-        if (parsed.committeeData && parsed.committeeData[committeeName]) delete parsed.committeeData[committeeName];
-        localStorage.setItem('homeData', JSON.stringify(parsed));
-      }
-    } catch (e) { /* ignore */ }
-    navigate('/home');
+    })();
   }
 
   return (
@@ -363,7 +349,7 @@ export default function Committee() {
         <div className="confirm-overlay" onClick={(e) => { if (e.target.className && e.target.className.includes('confirm-overlay')) setConfirmDelete(false); }}>
           <div className="confirm-content">
             <h3>Delete committee?</h3>
-            <p>Are you sure you want to delete "{committeeName}"? This will remove all local data for this committee.</p>
+            <p>Are you sure you want to delete "{committeeName}"? This will remove the committee from the server.</p>
             <div className="confirm-actions">
               <button className="confirm-cancel" onClick={() => setConfirmDelete(false)}>Cancel</button>
               <button className="confirm-delete" onClick={() => { setConfirmDelete(false); performDelete(); }}>Delete</button>

@@ -1,34 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './HomePage.css';
+import { createCommittee as fbCreateCommittee, getUserCommittees, deleteCommittee as fbDeleteCommittee } from './firebase/committees';
 
 function HomePage({ currentUser }) {
     const navigate = useNavigate();
-    const [homeData, setHomeData] = useState(() => {
-        // load persisted homeData so created committees persist across reloads
-        try {
-            const raw = localStorage.getItem('homeData');
-            if (raw) return JSON.parse(raw);
-        } catch (e) {
-            // ignore
-        }
-        return {
-            profile: { name: 'Profile Name' },
-            stats: [
-                { title: 'Your Committees', value: 2, description: "Active committees you're part of" },
-                { title: 'Pending Motions', value: 3, description: "Motions requiring your attention" },
-                { title: 'Upcoming Meetings', value: 1, description: 'Scheduled for this week' }
-            ],
-            committees: [
-                { name: 'Board of Directors', description: 'Monthly board meeting for strategic decisions', date: 'Created 1/14/2024', role: 'Member' },
-                { name: 'Budget Committee', description: 'Quarterly budget review and approval', date: 'Created 1/31/2024', role: 'Member' }
-            ],
-            committeeData: {
-                'Board of directors': { members: ['User Initial'], motions: [], meetings: [] },
-                'Budget Committee': { members: ['User Initial'], motions: [], meetings: [] }
-            }
-        };
-    });
+    const [homeData, setHomeData] = useState(() => ({
+        profile: { name: 'Profile Name' },
+        stats: [
+            { title: 'Your Committees', value: 0, description: "Active committees you're part of" },
+            { title: 'Pending Motions', value: 0, description: "Motions requiring your attention" },
+            { title: 'Upcoming Meetings', value: 0, description: 'Scheduled for this week' }
+        ],
+        committees: [],
+        committeeData: {}
+    }));
 
     const [modalOpen, setModalOpen] = useState(false);
     const [newCommittee, setNewCommittee] = useState({ name: '', description: '' });
@@ -36,14 +22,7 @@ function HomePage({ currentUser }) {
     const [openMenuFor, setOpenMenuFor] = useState(null);
     const [confirmDeleteFor, setConfirmDeleteFor] = useState(null);
 
-    // persist homeData to localStorage whenever it changes
-    useEffect(() => {
-        try {
-            localStorage.setItem('homeData', JSON.stringify(homeData));
-        } catch (e) {
-            // ignore
-        }
-    }, [homeData]);
+    // No localStorage persistence — data is kept in Firestore only.
 
     useEffect(() => {
         if (!currentUser) {
@@ -53,6 +32,32 @@ function HomePage({ currentUser }) {
         // Optionally set profile name
         setHomeData(prev => ({ ...prev, profile: { name: currentUser.displayName || currentUser.email || prev.profile.name } }));
     }, [currentUser, navigate]);
+
+    // Hydrate from Firestore when user is signed in (per-user committees)
+    useEffect(() => {
+        if (!currentUser) return;
+        (async () => {
+            try {
+                const serverCommittees = await getUserCommittees(currentUser.uid);
+                if (!serverCommittees) return;
+                setHomeData(prev => {
+                    const newHome = { ...prev };
+                    newHome.committees = serverCommittees.map(c => ({ name: c.name, description: c.description || '', date: c.createdAt ? `Created ${(c.createdAt.toDate ? c.createdAt.toDate() : new Date(c.createdAt)).toLocaleDateString()}` : '', role: c.ownerUid === currentUser.uid ? 'Owner' : 'Member', id: c.id }));
+                    newHome.committeeData = newHome.committeeData || {};
+                    serverCommittees.forEach(c => {
+                        newHome.committeeData[c.name] = {
+                            members: (c.members || []).map(m => m.uid || m.id || m),
+                            motions: (c.motions || []).map(m => ({ id: m.id, name: m.title || m.name || '', description: m.description || '', creator: m.creatorUid || '', date: m.createdAt ? (m.createdAt.toDate ? m.createdAt.toDate().toLocaleDateString() : new Date(m.createdAt).toLocaleDateString()) : '', status: m.status || 'active', type: m.type || '', threshold: m.threshold || '' })),
+                            meetings: []
+                        };
+                    });
+                    return newHome;
+                });
+            } catch (err) {
+                console.warn('Failed to hydrate committees from Firestore', err?.message || err);
+            }
+        })();
+    }, [currentUser]);
 
     function handleCreateClick() {
         setModalOpen(true);
@@ -80,15 +85,32 @@ function HomePage({ currentUser }) {
             return;
         }
         setModalError('');
-        setHomeData(prev => {
-            // prepend the newly created committee so it appears first
-            const committees = [{ name, description, date: `Created ${new Date().toLocaleDateString()}`, role: 'Member' }, ...prev.committees];
-            const committeeData = { ...prev.committeeData };
-            if (!committeeData[name]) committeeData[name] = { members: [prev.profile.name], motions: [], meetings: [] };
-            const stats = [...prev.stats];
-            stats[0] = { ...stats[0], value: committees.length };
-            return { ...prev, committees, committeeData, stats };
-        });
+        // Create the committee in Firestore and refresh the list. Don't persist locally.
+        (async () => {
+            try {
+                const committeeId = await fbCreateCommittee({ name, description });
+                // refresh from server
+                const serverCommittees = await getUserCommittees(currentUser.uid);
+                if (serverCommittees && serverCommittees.length) {
+                    setHomeData(prev => {
+                        const newHome = { ...prev };
+                        newHome.committees = serverCommittees.map(c => ({ name: c.name, description: c.description || '', date: c.createdAt ? `Created ${(c.createdAt.toDate ? c.createdAt.toDate() : new Date(c.createdAt)).toLocaleDateString()}` : '', role: c.ownerUid === currentUser.uid ? 'Owner' : 'Member', id: c.id }));
+                        newHome.committeeData = newHome.committeeData || {};
+                        serverCommittees.forEach(c => {
+                            newHome.committeeData[c.name] = {
+                                members: (c.members || []).map(m => m.uid || m.id || m),
+                                motions: (c.motions || []).map(m => ({ id: m.id, name: m.title || m.name || '', description: m.description || '', creator: m.creatorUid || '', date: m.createdAt ? (m.createdAt.toDate ? m.createdAt.toDate().toLocaleDateString() : new Date(m.createdAt).toLocaleDateString()) : '', status: m.status || 'active', type: m.type || '', threshold: m.threshold || '' })),
+                                meetings: []
+                            };
+                        });
+                        return newHome;
+                    });
+                }
+            } catch (err) {
+                setModalError('Failed to create committee: ' + (err?.message || err));
+                return;
+            }
+        })();
         setModalOpen(false);
         setNewCommittee({ name: '', description: '' });
         // scroll the committees container to show the newest card
@@ -98,7 +120,7 @@ function HomePage({ currentUser }) {
         }, 80);
     }
 
-    
+
 
     function enterCommittee(committee) {
         const committeeName = encodeURIComponent(committee.name);
@@ -106,20 +128,26 @@ function HomePage({ currentUser }) {
         navigate(`/committee?name=${committeeName}`);
     }
 
-    function handleDeleteCommittee(committee) {
-        const ok = window.confirm(`Delete committee "${committee.name}"? This will remove all local data for this committee.`);
+    async function handleDeleteCommittee(committee) {
+        const ok = window.confirm(`Delete committee "${committee.name}"? This will remove the committee from the server.`);
         if (!ok) return;
-        setHomeData(prev => {
-            const committees = (prev.committees || []).filter(c => c.name !== committee.name);
-            const committeeData = { ...prev.committeeData };
-            if (committeeData[committee.name]) delete committeeData[committee.name];
-            const stats = [...prev.stats];
-            stats[0] = { ...stats[0], value: committees.length };
-            const out = { ...prev, committees, committeeData, stats };
-            // persist immediately
-            try { localStorage.setItem('homeData', JSON.stringify(out)); } catch (e) {}
-            return out;
-        });
+        try {
+            if (!committee.id) {
+                // try to find id by name from server list
+                const server = await getUserCommittees(currentUser.uid);
+                const found = (server || []).find(c => c.name === committee.name);
+                if (!found) throw new Error('Committee not found on server');
+                await fbDeleteCommittee(found.id);
+            } else {
+                await fbDeleteCommittee(committee.id);
+            }
+            // refresh committees
+            const serverCommittees = await getUserCommittees(currentUser.uid);
+            setHomeData(prev => ({ ...prev, committees: (serverCommittees || []).map(c => ({ name: c.name, description: c.description || '', date: c.createdAt ? `Created ${(c.createdAt.toDate ? c.createdAt.toDate() : new Date(c.createdAt)).toLocaleDateString()}` : '', role: c.ownerUid === currentUser.uid ? 'Owner' : 'Member', id: c.id })) }));
+        } catch (err) {
+            console.error('Failed to delete committee', err);
+            alert('Failed to delete committee: ' + (err?.message || err));
+        }
     }
 
     return (
@@ -227,7 +255,7 @@ function HomePage({ currentUser }) {
                     </div>
                 </div>
             )}
-            
+
         </div>
     );
 }
