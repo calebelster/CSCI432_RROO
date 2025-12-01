@@ -1,16 +1,24 @@
 // javascript
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import './Motions.css';
 import { replyToMotion, castVote } from './firebase/committees';
 import { db } from './firebase/firebase';
-import { collection, onSnapshot, doc, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDocs, getDoc } from 'firebase/firestore';
 
 export default function Motions() {
     const location = useLocation();
+    const navigate = useNavigate();
     const [motions, setMotions] = useState([]);
     const [replyInputs, setReplyInputs] = useState({});
     const [replyStances, setReplyStances] = useState({});
+
+    // Centralized labels for vote buttons so they can be changed in one place
+    const VOTE_LABELS = {
+        yes: 'Yes',
+        no: 'No',
+        abstain: 'Abstain'
+    };
 
     // derive motion id and committee id (sessionStorage established by Committee view)
     useEffect(() => {
@@ -46,19 +54,56 @@ export default function Motions() {
         // subscribe to motions in Firestore for this committee
         const motionsCol = collection(db, 'committees', cid, 'motions');
         const unsub = onSnapshot(motionsCol, (snap) => {
-            const docs = snap.docs.map(d => {
+            // create raw motions with creatorUid where available
+            const raw = snap.docs.map(d => {
                 const md = d.data();
                 return {
                     id: d.id,
                     title: md.title || md.name || 'Untitled Motion',
                     description: md.description || '',
-                    creator: md.creatorUid || md.creator || '',
+                    // keep both creator (possibly name) and creatorUid for enrichment
+                    creator: md.creator || '',
+                    creatorUid: md.creatorUid || null,
                     status: md.status || 'active',
-                    replies: md.replies || [], // replies may be in subcollection; separate listener needed if important
+                    replies: md.replies || [],
                     tally: md.tally || { yes: 0, no: 0, abstain: 0 }
                 };
-            }).sort((a,b) => (b.id || '').localeCompare(a.id || ''));
-            setMotions(docs);
+            });
+
+            // asynchronously enrich motions with displayName from users collection when possible
+            (async () => {
+                try {
+                    // build list of unique uids to fetch
+                    const uids = Array.from(new Set(raw.map(m => m.creatorUid).filter(Boolean)));
+                    const profiles = {};
+                    await Promise.all(uids.map(async (uid) => {
+                        try {
+                            const userDoc = await getDoc(doc(db, 'users', uid));
+                            if (userDoc.exists()) profiles[uid] = userDoc.data();
+                        } catch (e) {
+                            // ignore individual profile errors
+                        }
+                    }));
+
+                    const docs = raw.map(m => {
+                        const displayName = m.creator || (m.creatorUid && profiles[m.creatorUid]?.displayName) || '';
+                        return {
+                            id: m.id,
+                            title: m.title,
+                            description: m.description,
+                            creator: displayName || (m.creatorUid || ''),
+                            status: m.status,
+                            replies: m.replies,
+                            tally: m.tally
+                        };
+                    }).sort((a,b) => (b.id || '').localeCompare(a.id || ''));
+                    setMotions(docs);
+                } catch (e) {
+                    // fallback to raw list if enrichment fails
+                    const docs = raw.map(m => ({ id: m.id, title: m.title, description: m.description, creator: m.creator || (m.creatorUid || ''), status: m.status, replies: m.replies, tally: m.tally })).sort((a,b) => (b.id || '').localeCompare(a.id || ''));
+                    setMotions(docs);
+                }
+            })();
         }, (err) => {
             console.warn('motions listener failed', err);
         });
@@ -153,6 +198,10 @@ export default function Motions() {
 
     return (
         <div className="motions-page">
+            <button className="back-button" onClick={() => navigate(-1)} aria-label="Go back">
+                <span className="back-arrow">←</span>
+                <span className="back-label">Back</span>
+            </button>
             <h1>Motions</h1>
             <div id="motions-container">
                 {motions.map((motion) => (
@@ -193,15 +242,24 @@ export default function Motions() {
 
                         <div className="voting">
                             <h4>Vote</h4>
-                            <div className="tally">
-                                <span>Yes: {motion.tally?.yes || 0}</span>
-                                <span>No: {motion.tally?.no || 0}</span>
-                                <span>Abstain: {motion.tally?.abstain || 0}</span>
-                            </div>
-                            <div className="vote-actions">
-                                <button onClick={() => vote(null, motion.id, 'yes')}>Yes</button>
-                                <button onClick={() => vote(null, motion.id, 'no')}>No</button>
-                                <button onClick={() => vote(null, motion.id, 'abstain')}>Abstain</button>
+                            <div className="vote-grid">
+                                <div className="vote-card yes-card">
+                                    <div className="vote-icon">✓</div>
+                                    <div className="vote-count">{VOTE_LABELS.yes}: {motion.tally?.yes || 0}</div>
+                                    <button className="vote-btn vote-yes" onClick={() => vote(null, motion.id, 'yes')}>{`Vote ${VOTE_LABELS.yes}`}</button>
+                                </div>
+
+                                <div className="vote-card no-card">
+                                    <div className="vote-icon">✕</div>
+                                    <div className="vote-count">{VOTE_LABELS.no}: {motion.tally?.no || 0}</div>
+                                    <button className="vote-btn vote-no" onClick={() => vote(null, motion.id, 'no')}>{`Vote ${VOTE_LABELS.no}`}</button>
+                                </div>
+
+                                <div className="vote-card abstain-card">
+                                    <div className="vote-icon">—</div>
+                                    <div className="vote-count">{VOTE_LABELS.abstain}: {motion.tally?.abstain || 0}</div>
+                                    <button className="vote-btn vote-abstain" onClick={() => vote(null, motion.id, 'abstain')}>{VOTE_LABELS.abstain}</button>
+                                </div>
                             </div>
                         </div>
                     </div>
