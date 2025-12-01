@@ -1,5 +1,6 @@
 // File: src/firebase/committees.js
 import { db, auth } from './firebase';
+import { updateProfile } from 'firebase/auth';
 import {
     collection, doc, setDoc, addDoc, updateDoc, serverTimestamp,
     getDoc, getDocs, runTransaction, query, where
@@ -156,8 +157,10 @@ export async function proposeOverturn(committeeId, originalMotionId, { title, de
 /* Utility: change user display name (also write to users collection for quick access) */
 export async function updateDisplayName(newName) {
     if (!auth.currentUser) throw new Error('Not signed in');
-    // Firebase Auth update on client
-    await auth.currentUser.updateProfile && auth.currentUser.updateProfile({ displayName: newName }).catch(() => {});
+    // Firebase Auth update (modular SDK)
+    await updateProfile(auth.currentUser, { displayName: newName });
+    // Ensure local user reflects changes immediately
+    try { await auth.currentUser.reload?.(); } catch {}
     // Mirror into Firestore users doc
     await setDoc(doc(db, 'users', auth.currentUser.uid), {
         displayName: newName,

@@ -3,6 +3,26 @@
   justify-content: center;
   padding: 3rem 1rem;
 }
+
+.profile-back {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: none;
+  background: #BEE3E8; /* light, similar to screenshot */
+  color: #111;
+  font-weight: 600;
+  font-size: 1.25rem; /* increase text size */
+  cursor: pointer;
+}
+
+.profile-back::before {
+  content: "\2190"; /* left arrow */
+  margin-right: 6px;
+  font-size: 1.25rem; /* match arrow size to text */
+}
 .profile-card {
   /* use the app's card / cream text colors to match Home UI */
   background: #5E6472; /* dark gray card color (matches --card) */
@@ -16,6 +36,8 @@
 .profile-card h2 {
   margin-top: 0;
   color: rgba(250, 243, 221, 0.95);
+  font-size: 1.25rem; /* increase heading size */
+  margin-bottom: 1rem; /* add spacing below */
 }
 
 .profile-form {
@@ -52,10 +74,29 @@
   color: #222;
   cursor: pointer;
 }
+.profile-logout {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: none;
+  background: #FAF3DD;
+  color: #111;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+}
 
 .btn.primary {
   background: #222;
   color: #fff;
+  border: none;
+}
+
+.btn.secondary {
+  background: #FAF3DD;
+  color: #222;
   border: none;
 }
 
