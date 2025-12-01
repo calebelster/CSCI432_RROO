@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import './HomePage.css';
 import { createCommittee } from './firebase/committees';
 import { db } from './firebase/firebase';
-import { collectionGroup, query, where, onSnapshot, getDoc } from 'firebase/firestore';
+import { collectionGroup, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 
 function HomePage({ currentUser }) {
     const navigate = useNavigate();
@@ -49,9 +49,29 @@ function HomePage({ currentUser }) {
         }
         setHomeData(prev => ({
             ...prev,
-            profile: { name: currentUser.displayName || currentUser.email || prev.profile.name }
+            profile: { name: currentUser.displayName || prev.profile.name || currentUser.email }
         }));
     }, [currentUser, navigate]);
+
+    // If displayName didn't propagate to currentUser yet, prefer Firestore mirror
+    useEffect(() => {
+        async function syncNameFromFirestore() {
+            if (!currentUser || !currentUser.uid) return;
+            try {
+                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                const displayName = userDoc.exists() ? (userDoc.data()?.displayName || '') : '';
+                if (displayName) {
+                    setHomeData(prev => ({
+                        ...prev,
+                        profile: { name: displayName }
+                    }));
+                }
+            } catch (e) {
+                // non-fatal
+            }
+        }
+        syncNameFromFirestore();
+    }, [currentUser]);
 
     // Real-time: find committees where the current user has a member doc
     useEffect(() => {
