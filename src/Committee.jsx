@@ -77,11 +77,33 @@ export default function Committee() {
                 setCommitteeObj({ id: committeeId, data });
                 setCommitteeInfo({ name: data.name, description: data.description });
 
-                // listen members
+                // listen members and enrich with user display names (if available)
                 const membersCol = collection(db, 'committees', committeeId, 'members');
                 unsubMembers = onSnapshot(membersCol, (msnap) => {
-                    const members = msnap.docs.map(d => ({ uid: d.id, ...d.data() }));
-                    setCommitteeData(prev => ({ ...prev, members }));
+                    const rawMembers = msnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+
+                    // resolve display names from users collection where possible
+                    (async () => {
+                        try {
+                            const enriched = await Promise.all(rawMembers.map(async (m) => {
+                                if (m.displayName) return m;
+                                try {
+                                    const userDoc = await getDoc(doc(db, 'users', m.uid));
+                                    if (userDoc.exists()) {
+                                        const ud = userDoc.data();
+                                        return { ...m, displayName: ud.displayName || m.displayName || null };
+                                    }
+                                } catch (e) {
+                                    // ignore profile fetch errors per-member
+                                }
+                                return m;
+                            }));
+                            setCommitteeData(prev => ({ ...prev, members: enriched }));
+                        } catch (e) {
+                            // on any failure, fall back to raw member list
+                            setCommitteeData(prev => ({ ...prev, members: rawMembers }));
+                        }
+                    })();
                 });
 
                 // listen motions
@@ -286,22 +308,24 @@ export default function Committee() {
                 ) : (
                     <div className="members-section">
                         <div className="members-header">Members</div>
-                        <table className="members-table">
-                            <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Position</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {(committeeData.members || []).map((member, idx) => (
-                                <tr key={member.uid || idx}>
-                                    <td className="member-name">{member.displayName || member.uid}</td>
-                                    <td className="member-pos">{member.role || 'Member'}</td>
+                        <div className="members-card">
+                            <table className="members-table">
+                                <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Position</th>
                                 </tr>
-                            ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                {(committeeData.members || []).map((member, idx) => (
+                                    <tr key={member.uid || idx}>
+                                        <td className="member-name">{member.displayName || member.uid}</td>
+                                        <td className="member-pos">{member.role || 'Member'}</td>
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
             </div>
