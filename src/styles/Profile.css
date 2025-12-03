@@ -11,8 +11,8 @@
   padding: 0.4rem 0.6rem;
   border-radius: 6px;
   border: none;
-  background: #BEE3E8; /* light, similar to screenshot */
-  color: #111;
+  background: var(--bg); /* light, similar to screenshot */
+  color: var(--text);
   font-weight: 600;
   font-size: 1.25rem; /* increase text size */
   cursor: pointer;
@@ -25,8 +25,8 @@
 }
 .profile-card {
   /* use the app's card / cream text colors to match Home UI */
-  background: #5E6472; /* dark gray card color (matches --card) */
-  color: #FAF3DD; /* cream text color (matches --text) */
+  background: var(--card); /* dark gray card color (matches --card) */
+  color: var(--text); /* cream text color (matches --text) */
   padding: 2rem;
   border-radius: 10px;
   width: 100%;
@@ -35,7 +35,8 @@
 }
 .profile-card h2 {
   margin-top: 0;
-  color: rgba(250, 243, 221, 0.95);
+  color: var(--text);
+  opacity: 0.95;
   font-size: 1.25rem; /* increase heading size */
   margin-bottom: 1rem; /* add spacing below */
 }
@@ -48,15 +49,16 @@
 
 .profile-form label {
   font-weight: 600;
-  color: rgba(250, 243, 221, 0.9);
+  color: var(--text);
+  opacity: 0.9;
 }
 
 .profile-form input {
   padding: 0.6rem;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: #FAF3DD;
+  border: 1px solid var(--border-color);
+  background: var(--bg);
+  color: var(--text);
 }
 
 .profile-actions {
@@ -69,9 +71,9 @@
 .btn {
   padding: 0.6rem 0.9rem;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.06);
-  color: #222;
+  border: 1px solid var(--border-color);
+  background: var(--bg);
+  color: var(--text);
   cursor: pointer;
 }
 .profile-logout {
@@ -81,26 +83,26 @@
   padding: 0.4rem 0.6rem;
   border-radius: 6px;
   border: none;
-  background: #FAF3DD;
-  color: #111;
+  background: var(--bg);
+  color: var(--text);
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
 }
 
 .btn.primary {
-  background: #222;
-  color: #fff;
+  background: var(--primary-color);
+  color: var(--primary-text-color);
   border: none;
 }
 
 .btn.secondary {
-  background: #FAF3DD;
-  color: #222;
+  background: var(--secondary-color);
+  color: var(--secondary-text-color);
   border: none;
 }
 
 .profile-status {
   margin-top: 8px;
-  color: #FAF3DD;
+  color: var(--text);
 }

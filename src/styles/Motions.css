@@ -4,19 +4,6 @@
 */
 @import "//cdn.jsdelivr.net/npm/font-kopub@1.0";
 
-:root {
-    --border-radius: 10px;
-    --background: #AED9E0;
-    --box-shadow: 2px 5px 10px rgba(0, 0, 0, 0.3);
-}
-
-body {
-    margin: 0;
-    font-family: 'KoPub Batang', Arial, sans-serif;
-    background: var(--background);
-    padding: 20px;
-}
-
 .motions-page {
     font-family: var(--font, Arial, Helvetica, sans-serif);
     padding: 24px;
@@ -36,28 +23,36 @@ body {
 .motion {
     background: var(--card, #ffffff);
     border-radius: 12px;
-    padding: 16px;
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
     color: var(--text, #111);
 }
 
 .motion h2 {
-    margin: 0 0 8px 0;
+    margin-top: 0;
     font-size: 1.1rem;
+    color: var(--text);
+}
+
+.motion p {
+    color: var(--text);
 }
 
 .focused-motion {
-    outline: 3px solid rgba(7, 18, 42, 0.18);
+    outline: 3px solid var(--primary-color);
     transition: outline 200ms ease;
 }
 
 .replies {
-    margin-top: 12px;
-    background: rgba(0,0,0,0.3);
+    margin-top: 15px;
     padding: 10px;
     border-radius: 8px;
+    background: var(--bg);
+    border-left: 3px solid var(--border-color);
 }
+
 .replies h3 {
     margin-top: 0;
     margin-bottom: 10px;
@@ -65,12 +60,15 @@ body {
 
 .reply {
     padding: 2px;
-    border-top: 2px solid rgba(0, 0, 0, 0.1);
+    border-top: 2px solid var(--border-color);
     margin: 0;
+    font-size: 0.95rem;
 }
 
 .no-replies {
-    color: rgba(0, 0, 0, 0.6);
+    color: var(--text);
+    opacity: 0.6;
+    margin-bottom: 8px;
     padding: 8px 0;
 }
 
@@ -84,23 +82,30 @@ body {
 .reply-input,
 .reply-select {
     padding: 8px 10px;
-    border-radius: 8px;
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
     font-family: var(--font, Arial, Helvetica, sans-serif);
 }
 
 .reply-input {
-    flex: 1 1 auto;
+    flex: 1;
+}
+
+.reply-select {
+    padding: 8px;
 }
 
 .reply-button {
-    background: #07122a;
-    color: #fff;
-    border: none;
     padding: 8px 12px;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
-    font-family: var(--font, Arial, Helvetica, sans-serif);
+    border: none;
+    background-color: var(--primary-color);
+    color: var(--primary-text-color);
+}
+
+.reply-button:hover {
+    background-color: var(--primary-hover-color);
 }
 
 /* ensure option elements use project font when available */
@@ -120,91 +125,15 @@ select {
     }
 }
 
-
-/* page container for the React component */
-.motions-page {
-    padding: 24px;
-}
-
 h1 {
     text-align: center;
-    color: #222;
-}
-
-/* Ensure the Motions page title size is explicit so the Back label can match it */
-h1 {
+    color: var(--text);
     font-size: 28px;
-}
-
-.motion {
-    background: white;
-    border-radius: var(--border-radius);
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: var(--box-shadow);
-}
-
-.motion h2 {
-    margin-top: 0;
-    color: #444;
-}
-
-.motion p {
-    color: #555;
-}
-
-.replies {
-    margin-top: 15px;
-    padding-left: 15px;
-    border-left: 3px solid #ccc;
-}
-
-.reply {
-    margin-bottom: 8px;
-    font-size: 0.95rem;
-}
-
-/* Reply form controls (scoped) */
-.reply-form {
-    display: flex;
-    gap: 8px;
-    margin-top: 8px;
-    align-items: center;
-}
-
-.reply-input {
-    flex: 1;
-    padding: 8px 10px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-}
-
-.reply-select {
-    padding: 8px;
-    border-radius: 6px;
-}
-
-.reply-button {
-    padding: 8px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    border: none;
-    background-color: #444;
-    color: #fff;
-}
-
-.reply-button:hover {
-    background-color: #222;
-}
-
-.no-replies {
-    color: #666;
-    margin-bottom: 8px;
 }
 
 .voting {
     margin-top: 12px;
-    background: rgba(0,0,0,0.3);
+    background: var(--bg);
     padding: 10px;
     border-radius: 8px;
 }
@@ -222,7 +151,7 @@ h1 {
     margin-top: 8px;
 }
 .vote-card {
-    background: #fff;
+    background: var(--card);
     border-radius: 10px;
     padding: 18px;
     box-shadow: 0 6px 12px rgba(0,0,0,0.06);
@@ -240,14 +169,14 @@ h1 {
     font-size: 22px;
     font-weight: 700;
     margin: 14px 0;
-    color: #000;
+    color: var(--text);
 }
 .vote-btn {
     width: 80%;
     padding: 12px 14px;
     border-radius: 8px;
     border: none;
-    color: #fff;
+    color: var(--primary-text-color);
     font-size: 18px;
     cursor: pointer;
 }
@@ -273,7 +202,7 @@ h1 {
     z-index: 9999;
     background: transparent;
     border: none;
-    color: #0b1a16;
+    color: var(--text);
     line-height: 1;
     font-family: 'KoPub Batang', 'Times New Roman', Times, serif;
     font-weight: 400;
@@ -285,7 +214,7 @@ h1 {
     gap: 10px;
 }
 .back-button:focus { outline: none; }
-.back-button:hover { color: #000; }
+.back-button:hover { color: var(--text); }
 
 /* Arrow larger than label to match the screenshot */
 .back-arrow {

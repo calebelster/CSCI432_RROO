@@ -1,10 +1,15 @@
 @import url("https://cdn.jsdelivr.net/npm/font-kopub@1.0");
 
 :root {
-    --bg: #AED9E0;
-    --card: #5E6472;
-    --text: #FAF3DD;
+    --bg: #E0F2F7;
+    --card: #FFFFFF;
+    --text: #1C1E21;
     --font: 'KoPub Batang', Arial, sans-serif;
+    --border-color: #DADDE1;
+    --primary-color: #1877F2;
+    --primary-text-color: #FFFFFF;
+    --secondary-color: #E7F3FF;
+    --secondary-text-color: #1877F2;
 }
 
 /* Override body and card backgrounds */
@@ -147,7 +152,7 @@ body {
 }
 
 .create-button {
-    background-color: #000;
+    background-color: var(--primary-color);
     color: #fff;
     border: none;
     padding: 0.75rem 1.5rem;
@@ -156,14 +161,11 @@ body {
     font-weight: 500;
     cursor: pointer;
     font-family: var(--font);
-    transition: background-color 0.2s ease;
     display: flex;
     align-items: center;
 }
 
-.create-button:hover {
-    background-color: #333333;
-}
+
 
 .committee-card-grid {
     /* Grid-like layout for committee cards. Show multiple cards per row and wrap to next line.
@@ -233,7 +235,7 @@ body {
 }
 
 .enter-button {
-    background-color: #000;
+    background-color: var(--primary-color);
     color: #fff;
     border: none;
     padding: 0.6rem 1.25rem;
@@ -242,12 +244,9 @@ body {
     font-weight: 500;
     cursor: pointer;
     font-family: var(--font);
-    transition: background-color 0.15s ease, transform 0.12s ease;
 }
 
-.enter-button:hover {
-    background-color: #333333;
-}
+
 
 /* more menu on committee cards and confirm modal */
 .more-btn {
@@ -406,7 +405,7 @@ body {
     line-height: 1;
     font-size: 0.95rem;
     border: none;
-    background-color: #000;
+    background-color: var(--primary-color);
     cursor: pointer;
     color: var(--text);
     border-radius: 6px;
@@ -473,13 +472,13 @@ body {
 }
 
 .modal-button.create {
-    background-color: #000;
+    background-color: var(--primary-color);
     color: #fff;
     border: none;
 }
 
 .modal-button.create:hover {
-    background-color: #333333;
+    background-color: var(--primary-hover-color);
 }
 
 @media (max-width: 768px) {
@@ -532,9 +531,9 @@ body {
     }
 
     .card {
-        /* exactly three columns with gaps of 1.5rem between */
-        flex: 0 0 calc((100% - 3rem) / 3);
-        max-width: calc((100% - 3rem) / 3);
+        /* exactly two columns with gaps of 1.5rem between */
+        flex: 0 0 calc((100% - 1.5rem) / 2);
+        max-width: calc((100% - 1.5rem) / 2);
     }
 
     .committee-card-grid {

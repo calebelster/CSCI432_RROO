@@ -37,7 +37,7 @@ button {
 	align-items: center;
 	justify-content: space-between;
 	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.07);
-	border: 1px solid rgba(255, 255, 255, 0.06);
+	border: 1px solid var(--border-color);
 }
 
 .committee-header-bar h1 {
@@ -63,7 +63,7 @@ button {
 .back-btn {
 	background: transparent;
 	color: var(--text);
-	border: 1px solid rgba(255, 255, 255, 0.08);
+	border: 1px solid var(--border-color);
 	border-radius: 8px;
 	padding: 7px 14px;
 	font-size: 1rem;
@@ -71,8 +71,8 @@ button {
 }
 
 .new-motion-btn {
-	background: #000;
-	color: #fff;
+	background: var(--primary-color);
+	color: var(--primary-text-color);
 	border: none;
 	border-radius: 8px;
 	padding: 8px 12px;
@@ -97,7 +97,7 @@ button {
 	background: var(--card);
 	padding: 6px;
 	border-radius: 999px;
-	border: 1px solid rgba(255, 255, 255, 0.04);
+	border: 1px solid var(--border-color);
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 	width: fit-content;
 	box-sizing: border-box;
@@ -121,8 +121,8 @@ button {
 
 .tab.active {
 	/* inner pill for the selected option */
-	background: rgba(255, 255, 255, 0.95);
-	color: #111;
+	background: var(--primary-color);
+	color: var(--primary-text-color);
 	font-weight: 700;
 	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
@@ -151,7 +151,7 @@ button {
 	background: var(--card);
 	padding: 6px;
 	border-radius: 999px;
-	border: 1px solid rgba(255, 255, 255, 0.04);
+	border: 1px solid var(--border-color);
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 	width: fit-content;
 	box-sizing: border-box;
@@ -176,15 +176,15 @@ button {
 
 .filter-btn.active {
 	/* inner pill for the selected option */
-	background: rgba(255, 255, 255, 0.95);
-	color: #111;
+	background: var(--primary-color);
+	color: var(--primary-text-color);
 	font-weight: 700;
 	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
 .motion-card {
 	background: var(--card);
-	border: 1px solid rgba(255, 255, 255, 0.06);
+	border: 1px solid var(--border-color);
 	border-radius: 12px;
 	padding: 16px;
 	margin-bottom: 12px;
@@ -211,8 +211,8 @@ button {
 
 .view-details-btn,
 .motion-card-footer .view-details-btn {
-	background: #000;
-	color: #fff;
+	background: var(--primary-color);
+	color: var(--primary-text-color);
 	border: none;
 	border-radius: 8px;
 	padding: 6px 12px;
@@ -239,7 +239,7 @@ button {
 }
 
 .members-table tr:not(:last-child) {
-	border-bottom: 1px solid rgba(255, 255, 255, 0.04)
+	border-bottom: 1px solid var(--border-color)
 }
 
 /* Members card: white rounded card with centered columns like the reference image */
@@ -297,9 +297,9 @@ button {
 .modal-content {
 	/* slightly larger, more airy modal like the reference -- keep theme colors */
 	/* background: var(--card); */
-	background: white;
+	background: var(--card);
 	/* color: var(--text); */
-	color: black;
+	color: var(--text);
 	border-radius: 12px;
 	max-width: 640px;
 	/* slightly smaller so modal covers less space */
@@ -330,13 +330,13 @@ button {
 }
 
 .modal-sub {
-	color: #000;
+	color: var(--text);
 	opacity: 0.88;
 	margin-bottom: 16px;
 }
 
 .form-label {
-	color: #000;
+	color: var(--text);
 	display: block;
 	margin-bottom: 8px;
 	font-weight: 700;
@@ -348,9 +348,9 @@ button {
 	width: 100%;
 	padding: 12px 14px;
 	border-radius: 10px;
-	border: 1px solid rgba(0, 0, 0, 0.06);
-	background: rgba(255, 255, 255, 0.04);
-	color: #000;
+	border: 1px solid var(--border-color);
+	background: var(--bg);
+	color: var(--text);
 	font-family: var(--font);
 	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
@@ -372,7 +372,7 @@ button {
 }
 
 .form-label-inline {
-	color: #000;
+	color: var(--text);
 	/* keep label bold like other form labels */
 	font-weight: 700;
 	display: inline-block;
@@ -447,10 +447,10 @@ button {
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background: rgba(0, 0, 0, 0.06);
+	background: #ccc;
 	transition: background-color 160ms ease, border-color 160ms ease;
 	border-radius: 999px;
-	border: 1px solid rgba(0, 0, 0, 0.06);
+	border: 1px solid var(--border-color);
 }
 
 .switch-slider::before {
@@ -473,9 +473,9 @@ select {
 }
 
 .switch input:checked+.switch-slider {
-	background: #07122a;
+	background: var(--primary-color);
 	/* match modal-create / brand dark */
-	border-color: rgba(0, 0, 0, 0.12);
+	border-color: var(--primary-color);
 }
 
 .switch input:checked+.switch-slider::before {
@@ -502,15 +502,15 @@ select {
 
 .modal-cancel {
 	background: transparent;
-	border: 1px solid rgba(0, 0, 0, 0.06);
-	color: #000;
+	border: 1px solid var(--border-color);
+	color: var(--text);
 	padding: 10px 14px;
 	border-radius: 10px;
 }
 
 .modal-create {
-	background: #07122a;
-	color: #fff;
+	background: var(--primary-color);
+	color: var(--primary-text-color);
 	border: none;
 	padding: 10px 16px;
 	border-radius: 10px;
@@ -531,8 +531,8 @@ select {
 }
 
 .settings-list {
-	background: rgba(255, 255, 255, 0.02);
-	border: 1px solid rgba(0, 0, 0, 0.04);
+	background: var(--bg);
+	border: 1px solid var(--border-color);
 	padding: 14px;
 	border-radius: 10px;
 }
@@ -546,13 +546,13 @@ select {
 }
 
 .settings-list .setting-name {
-	color: #000;
+	color: var(--text);
 	font-weight: 600;
 	text-align: left;
 }
 
 .settings-list .setting-val {
-	color: #000;
+	color: var(--text);
 	float: none;
 	text-align: right;
 	font-weight: 500;
@@ -592,7 +592,7 @@ select {
 .invite-box input {
 	padding: 8px;
 	border-radius: 6px;
-	border: 1px solid rgba(255, 255, 255, 0.06);
+	border: 1px solid var(--border-color);
 	background: transparent;
 	color: var(--text)
 }
@@ -601,8 +601,8 @@ select {
 	padding: 8px 12px;
 	border-radius: 6px;
 	border: none;
-	background: #000;
-	color: #fff
+	background: var(--primary-color);
+	color: var(--primary-text-color)
 }
 
 .more-btn {
@@ -650,7 +650,7 @@ select {
 
 .confirm-cancel {
 	background: transparent;
-	border: 1px solid rgba(255, 255, 255, 0.06);
+	border: 1px solid var(--border-color);
 	color: var(--text);
 	padding: 8px 12px;
 	border-radius: 8px
