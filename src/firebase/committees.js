@@ -2,7 +2,7 @@
 import { db, auth } from './firebase';
 import { updateProfile } from 'firebase/auth';
 import {
-    collection, doc, setDoc, addDoc, updateDoc, serverTimestamp,
+    collection, doc, setDoc, addDoc, updateDoc, serverTimestamp, deleteDoc,
     getDoc, getDocs, runTransaction, query, where
 } from 'firebase/firestore';
 
@@ -47,7 +47,7 @@ export async function setMemberRole(committeeId, userUid, role) {
 
 /* Create a motion in a committee */
 export async function createMotion(committeeId, motion) {
-    // motion: { title, description, type, threshold, anonymousVotes (bool), secondRequired, discussionStyle, ... }
+    // motion: { title, description, type, threshold, anonymousVotes (bool), secondRequired, discussionStyle, voteThreshold, ... }
     if (!auth.currentUser) throw new Error('Not signed in');
     const motionsCol = collection(db, 'committees', committeeId, 'motions');
     const docRef = await addDoc(motionsCol, {
@@ -56,7 +56,9 @@ export async function createMotion(committeeId, motion) {
         creatorDisplayName: auth.currentUser.displayName,
         status: 'active',
         tally: { yes: 0, no: 0, abstain: 0 },
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        // Explicitly set threshold and voteThreshold, with a default for voteThreshold
+        threshold: motion.threshold || 'Simple Majority',
     });
     return docRef.id;
 }
@@ -155,6 +157,78 @@ export async function proposeOverturn(committeeId, originalMotionId, { title, de
     }
     // create a special motion referencing original
     return createMotion(committeeId, { title, description, type: 'overturn', relatedTo: originalMotionId });
+}
+
+/* Delete a motion (creator or committee owner) */
+export async function deleteMotion(committeeId, motionId) {
+    if (!auth.currentUser) throw new Error('Not signed in');
+
+    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
+    const motionSnap = await getDoc(motionRef);
+
+    if (!motionSnap.exists()) {
+        throw new Error('Motion not found');
+    }
+
+    const motionData = motionSnap.data();
+    const creatorUid = motionData.creatorUid;
+
+    const committeeRef = doc(db, 'committees', committeeId);
+    const committeeSnap = await getDoc(committeeRef);
+    const committeeData = committeeSnap.data();
+    const ownerUid = committeeData.ownerUid;
+
+    if (auth.currentUser.uid !== creatorUid && auth.currentUser.uid !== ownerUid) {
+        throw new Error('Not authorized to delete this motion');
+    }
+
+    await updateDoc(motionRef, {
+        status: 'deleted',
+        deletedAt: serverTimestamp()
+    });
+    return true;
+}
+
+/* Close voting for a motion (committee owner) */
+export async function closeMotionVoting(committeeId, motionId) {
+    if (!auth.currentUser) throw new Error('Not signed in');
+
+    const committeeRef = doc(db, 'committees', committeeId);
+    const committeeSnap = await getDoc(committeeRef);
+    const committeeData = committeeSnap.data();
+    const ownerUid = committeeData.ownerUid;
+
+    if (auth.currentUser.uid !== ownerUid) {
+        throw new Error('Not authorized to close voting for this motion');
+    }
+
+    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
+    await updateDoc(motionRef, {
+        status: 'closed',
+        closedAt: serverTimestamp()
+    });
+    return true;
+}
+
+/* Approve a motion (committee owner) */
+export async function approveMotion(committeeId, motionId) {
+    if (!auth.currentUser) throw new Error('Not signed in');
+
+    const committeeRef = doc(db, 'committees', committeeId);
+    const committeeSnap = await getDoc(committeeRef);
+    const committeeData = committeeSnap.data();
+    const ownerUid = committeeData.ownerUid;
+
+    if (auth.currentUser.uid !== ownerUid) {
+        throw new Error('Not authorized to approve this motion');
+    }
+
+    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
+    await updateDoc(motionRef, {
+        status: 'completed',
+        approvedAt: serverTimestamp()
+    });
+    return true;
 }
 
 /* Utility: change user display name (also write to users collection for quick access) */

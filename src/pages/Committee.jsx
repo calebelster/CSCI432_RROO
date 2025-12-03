@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import '../styles/Committee.css';
-import { createMotion } from '../firebase/committees';
-import { db } from '../firebase/firebase';
+import { createMotion, deleteMotion, approveMotion, closeMotionVoting } from '../firebase/committees';
+import { db, auth } from '../firebase/firebase';
 import { collection, doc, getDocs, query, where, onSnapshot, getDoc } from 'firebase/firestore';
 
 export default function Committee() {
@@ -28,7 +28,7 @@ export default function Committee() {
         type: 'Main Motion',
         title: '',
         description: '',
-        threshold: 'Simple Majority',
+        voteThreshold: 'Simple Majority', // Consolidated vote threshold field
         requiresDiscussion: false,
         secondRequired: true,
         discussionStyle: 'Offline',
@@ -116,10 +116,12 @@ export default function Committee() {
                             name: md.title || md.name || 'Untitled Motion',
                             description: md.description || '',
                             creator: md.creatorDisplayName || md.creatorUid || md.creator || '',
+                            creatorUid: md.creatorUid, // Include creatorUid for authorization checks
                             date: md.createdAt && md.createdAt.toDate ? new Date(md.createdAt.toDate()).toLocaleDateString() : '',
                             status: md.status || 'active',
                             type: md.type || '',
-                            threshold: md.threshold || '',
+                            threshold: md.voteThreshold || 'Simple Majority', // Consolidated vote threshold field
+
                             requiresDiscussion: !!md.requiresDiscussion,
                             secondRequired: !!md.secondRequired,
                             discussionStyle: md.discussionStyle || 'Offline',
@@ -155,7 +157,7 @@ export default function Committee() {
     }
     function closeModal() {
         setShowModal(false);
-        setForm({ type: 'Main Motion', title: '', description: '', threshold: 'Simple Majority', requiresDiscussion: false, secondRequired: true, discussionStyle: 'Offline', allowAnonymous: false });
+        setForm({ type: 'Main Motion', title: '', description: '', voteThreshold: 'Simple Majority', requiresDiscussion: false, secondRequired: true, discussionStyle: 'Offline', allowAnonymous: false });
     }
 
     async function handleCreateMotion(e) {
@@ -164,7 +166,7 @@ export default function Committee() {
             title: form.title || 'Untitled Motion',
             description: form.description || '',
             type: form.type,
-            threshold: form.threshold,
+            threshold: form.voteThreshold, // Using voteThreshold as the primary threshold
             anonymousVotes: !!form.allowAnonymous,
             requiresDiscussion: !!form.requiresDiscussion,
             secondRequired: !!form.secondRequired,
@@ -192,7 +194,7 @@ export default function Committee() {
                 date: new Date().toLocaleDateString(),
                 status: 'active',
                 type: motionPayload.type,
-                threshold: motionPayload.threshold,
+                threshold: motionPayload.threshold, // Use motionPayload.threshold
                 requiresDiscussion: !!motionPayload.requiresDiscussion,
                 secondRequired: motionPayload.secondRequired,
                 discussionStyle: motionPayload.discussionStyle,
@@ -217,21 +219,52 @@ export default function Committee() {
     }
 
     const filteredMotions = (committeeData.motions || []).filter((m) => {
-        if (motionFilter === 'all') return true;
-        if (motionFilter === 'active') return m.status === 'active';
-        if (motionFilter === 'completed') return m.status === 'completed';
-        return true;
+        if (motionFilter === 'all') return m.status !== 'deleted'; // Show all non-deleted motions
+        if (motionFilter === 'active') return (m.status === 'active' || m.status === 'closed') && m.status !== 'deleted'; // Active or Closed, but not Deleted
+        if (motionFilter === 'completed') return m.status === 'completed' || m.status === 'deleted'; // Completed or Deleted
+        return false; // Should not reach here
     });
 
-    const allCount = (committeeData.motions || []).length;
-    const activeCount = (committeeData.motions || []).filter((m) => m.status === 'active').length;
-    const completedCount = (committeeData.motions || []).filter((m) => m.status === 'completed').length;
+    const allCount = (committeeData.motions || []).filter((m) => m.status !== 'deleted').length; // All non-deleted motions
+    const activeCount = (committeeData.motions || []).filter((m) => (m.status === 'active' || m.status === 'closed') && m.status !== 'deleted').length; // Active or Closed, but not Deleted
+    const completedCount = (committeeData.motions || []).filter((m) => m.status === 'completed' || m.status === 'deleted').length; // Completed or Deleted
 
     function viewMotion(motion) {
         try {
-            sessionStorage.setItem('motion_' + motion.id, JSON.stringify({ ...motion, committeeId: committeeObj?.id || committeeName }));
+            sessionStorage.setItem('motion_' + motion.id, JSON.stringify({ ...motion, committeeId: committeeObj?.id || committeeName, creatorUid: motion.creatorUid }));
         } catch (e) {}
         navigate(`/motions?id=${motion.id}`);
+    }
+
+    async function handleDeleteMotion(motionId) {
+        if (!window.confirm('Are you sure you want to delete this motion?')) return;
+        try {
+            await deleteMotion(committeeObj.id, motionId);
+            // The onSnapshot listener will automatically update the UI after deletion
+        } catch (err) {
+            console.error('Failed to delete motion:', err);
+            alert('Failed to delete motion: ' + err.message);
+        }
+    }
+
+    async function handleCloseMotionVoting(motionId) {
+        if (!window.confirm('Are you sure you want to close voting for this motion?')) return;
+        try {
+            await closeMotionVoting(committeeObj.id, motionId);
+        } catch (err) {
+            console.error('Failed to close voting for motion:', err);
+            alert('Failed to close voting for motion: ' + err.message);
+        }
+    }
+
+    async function handleApproveMotion(motionId) {
+        if (!window.confirm('Are you sure you want to approve this motion?')) return;
+        try {
+            await approveMotion(committeeObj.id, motionId);
+        } catch (err) {
+            console.error('Failed to approve motion:', err);
+            alert('Failed to approve motion: ' + err.message);
+        }
     }
 
     function performDelete() {
@@ -246,6 +279,8 @@ export default function Committee() {
         } catch (e) {}
         navigate('/home');
     }
+
+    const isCommitteeOwner = auth.currentUser && committeeObj?.data?.ownerUid === auth.currentUser.uid;
 
     return (
         <div className="committee-container">
@@ -291,16 +326,41 @@ export default function Committee() {
                             ) : (
                                 filteredMotions.map((motion) => (
                                     <div key={motion.id} className="motion-card">
-                                        <h3>{motion.name}</h3>
-                                        <p className="motion-desc">{motion.description}</p>
-                                        <div className="motion-card-footer">
-                                            <div className="motion-meta">
-                                                <span className="creator">{motion.creator}</span>
-                                                <span className="date">{motion.date}</span>
+                                            <div className="motion-card-header">
+                                                <div className="motion-card-title-wrap">
+                                                    <h3 className="motion-title">{motion.name}</h3>
+                                                    {motion.status === 'active' && (
+                                                        <span className="motion-badge">Active</span>
+                                                    )}
+                                                </div>
+                                                <div className="motion-card-actions-top">
+                                                    {motion.status === 'active' && isCommitteeOwner && (
+                                                        <button className="close-voting-btn" onClick={() => handleCloseMotionVoting(motion.id)}>Close Voting</button>
+                                                    )}
+                                                    {(auth.currentUser?.uid === motion.creatorUid || isCommitteeOwner) && motion.status !== 'deleted' && (
+                                                        <button className="delete-motion-btn" onClick={() => handleDeleteMotion(motion.id)}>Delete</button>
+                                                    )}
+                                                    {motion.status === 'closed' && isCommitteeOwner && (
+                                                        <button className="approve-motion-btn" onClick={() => handleApproveMotion(motion.id)}>Approve</button>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <button className="view-details-btn" onClick={() => viewMotion(motion)}>View Details</button>
+
+                                            <p className="motion-desc">{motion.description}</p>
+
+                                            <div className="motion-card-footer">
+                                                <div className="motion-meta">
+                                                    <div className="motion-avatar">{(motion.creator || '').split(' ').map(s => s[0]).slice(0,2).join('').toUpperCase()}</div>
+                                                    <div className="motion-meta-text">
+                                                        <div className="creator">{motion.creator}</div>
+                                                        <div className="date">{motion.date}</div>
+                                                    </div>
+                                                </div>
+                                                <div className="motion-card-footer-right">
+                                                    <button className="view-details-btn" onClick={() => viewMotion(motion)}>View Details</button>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
                                 ))
                             )}
                         </div>
@@ -358,13 +418,12 @@ export default function Committee() {
                             </div>
 
                             <div className="form-row">
-                                <label className="form-label">Vote Threshold Required</label>
-                                <select name="threshold" value={form.threshold} onChange={(e) => setForm({ ...form, threshold: e.target.value })} className="form-select">
-                                    <option value="Simple Majority">Simple Majority</option>
-                                    <option value="Two-Thirds">Two-Thirds</option>
-                                    <option value="Unanimous">Unanimous</option>
+                                <label className="form-label">Vote Threshold</label>
+                                <select name="voteThreshold" value={form.voteThreshold} onChange={(e) => setForm({ ...form, voteThreshold: e.target.value })} className="form-select">
+                                    <option value="Simple Majority">Simple Majority (&gt;50% of votes cast)</option>
+                                    <option value="Two-Thirds">Two-Thirds (≥66% of votes cast)</option>
+                                    <option value="Unanimous">Unanimous (All 'Yes' votes)</option>
                                 </select>
-                                <small className="form-note">More than 50% of votes cast</small>
                             </div>
 
                             <div className="form-row requires-row">

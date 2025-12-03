@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../styles/Motions.css';
-import { replyToMotion, castVote } from '../firebase/committees';
-import { db } from '../firebase/firebase';
+import { replyToMotion, castVote, approveMotion, closeMotionVoting } from '../firebase/committees';
+import { db, auth } from '../firebase/firebase';
 import { collection, onSnapshot, doc, getDocs, getDoc } from 'firebase/firestore';
 
 export default function Motions() {
@@ -12,6 +12,7 @@ export default function Motions() {
     const [motions, setMotions] = useState([]);
     const [replyInputs, setReplyInputs] = useState({});
     const [replyStances, setReplyStances] = useState({});
+    const [committeeOwnerUid, setCommitteeOwnerUid] = useState(null); // New state for committee owner UID
 
     // Centralized labels for vote buttons so they can be changed in one place
     const VOTE_LABELS = {
@@ -23,10 +24,11 @@ export default function Motions() {
     // derive motion id and committee id (sessionStorage established by Committee view)
     useEffect(() => {
         let cid = null;
+        const params = new URLSearchParams(location.search);
+        const motionId = params.get('id'); // Get motionId directly from URL here
+
         try {
-            const params = new URLSearchParams(location.search);
-            const id = params.get('id');
-            const raw = sessionStorage.getItem('motion_' + id);
+            const raw = sessionStorage.getItem('motion_' + motionId);
             if (raw) {
                 const parsed = JSON.parse(raw);
                 cid = parsed.committeeId || null;
@@ -43,13 +45,25 @@ export default function Motions() {
                     const all = [];
                     for (const k in parsed.committeeData || {}) {
                         const cm = parsed.committeeData[k];
-                        (cm.motions || []).forEach(m => all.push(m));
+                        (cm.motions || []).forEach(m => all.push({ ...m, threshold: m.threshold || 'Simple Majority' })); // Use threshold
                     }
                     setMotions(all);
                 }
             } catch (e) {}
             return;
         }
+
+        // Fetch committee owner UID
+        (async () => {
+            try {
+                const committeeDoc = await getDoc(doc(db, 'committees', cid));
+                if (committeeDoc.exists()) {
+                    setCommitteeOwnerUid(committeeDoc.data().ownerUid);
+                }
+            } catch (e) {
+                console.error('Failed to fetch committee owner:', e);
+            }
+        })();
 
         // subscribe to motions in Firestore for this committee
         const motionsCol = collection(db, 'committees', cid, 'motions');
@@ -66,7 +80,8 @@ export default function Motions() {
                     creatorUid: md.creatorUid || null,
                     status: md.status || 'active',
                     replies: md.replies || [],
-                    tally: md.tally || { yes: 0, no: 0, abstain: 0 }
+                    tally: md.tally || { yes: 0, no: 0, abstain: 0 },
+                    threshold: md.threshold || 'Simple Majority' // Use threshold
                 };
             });
 
@@ -85,7 +100,7 @@ export default function Motions() {
                         }
                     }));
 
-                    const docs = raw.map(m => {
+                    let docs = raw.map(m => {
                         const displayName = m.creator || (m.creatorUid && profiles[m.creatorUid]?.displayName) || '';
                         return {
                             id: m.id,
@@ -94,13 +109,21 @@ export default function Motions() {
                             creator: displayName || (m.creatorUid || ''),
                             status: m.status,
                             replies: m.replies,
-                            tally: m.tally
+                            tally: m.tally,
+                            threshold: m.threshold // Ensure threshold is passed through
                         };
                     }).sort((a,b) => (b.id || '').localeCompare(a.id || ''));
+                    
+                    if (motionId) { // Filter if motionId is present
+                        docs = docs.filter(m => m.id === motionId);
+                    }
                     setMotions(docs);
                 } catch (e) {
                     // fallback to raw list if enrichment fails
-                    const docs = raw.map(m => ({ id: m.id, title: m.title, description: m.description, creator: m.creator || (m.creatorUid || ''), status: m.status, replies: m.replies, tally: m.tally })).sort((a,b) => (b.id || '').localeCompare(a.id || ''));
+                    let docs = raw.map(m => ({ id: m.id, title: m.title, description: m.description, creator: m.creator || (m.creatorUid || ''), status: m.status, replies: m.replies, tally: m.tally, threshold: m.threshold })).sort((a,b) => (b.id || '').localeCompare(a.id || '')); // Ensure threshold is passed through
+                    if (motionId) { // Filter if motionId is present
+                        docs = docs.filter(m => m.id === motionId);
+                    }
                     setMotions(docs);
                 }
             })();
@@ -110,6 +133,42 @@ export default function Motions() {
 
         return () => unsub();
     }, [location.search]);
+
+    const isCommitteeOwner = auth.currentUser?.uid === committeeOwnerUid;
+
+    async function handleApproveMotion(motionId) {
+        if (!window.confirm('Are you sure you want to approve this motion?')) return;
+        try {
+            const params = new URLSearchParams(location.search);
+            const cid = params.get('cid'); // Use cid from URL if available, or from state if set
+            if (cid) {
+                await approveMotion(cid, motionId);
+            } else {
+                console.error('Committee ID not found for approving motion.');
+                alert('Committee ID not found for approving motion.');
+            }
+        } catch (err) {
+            console.error('Failed to approve motion:', err);
+            alert('Failed to approve motion: ' + err.message);
+        }
+    }
+
+    async function handleCloseMotionVoting(motionId) {
+        if (!window.confirm('Are you sure you want to close voting for this motion?')) return;
+        try {
+            const params = new URLSearchParams(location.search);
+            const cid = params.get('cid'); // Use cid from URL if available, or from state if set
+            if (cid) {
+                await closeMotionVoting(cid, motionId);
+            } else {
+                console.error('Committee ID not found for closing motion voting.');
+                alert('Committee ID not found for closing motion voting.');
+            }
+        } catch (err) {
+            console.error('Failed to close voting for motion:', err);
+            alert('Failed to close voting for motion: ' + err.message);
+        }
+    }
 
     function handleInputChange(id, value) {
         setReplyInputs((prev) => ({ ...prev, [id]: value }));
@@ -205,11 +264,21 @@ export default function Motions() {
             <h1>Motions</h1>
             <div id="motions-container">
                 {motions.map((motion) => (
-                    <div id={`motion-${motion.id}`} key={motion.id} className="motion">
+                    <div id={`motion-${motion.id}`} key={motion.id} className={`motion motion-${motion.status.toLowerCase()}`}>
                         <h2>{motion.title}</h2>
                         <p><strong>Description:</strong> {motion.description}</p>
                         <p><strong>Creator:</strong> {motion.creator}</p>
                         <p><strong>Status:</strong> {motion.status}</p>
+                        <p><strong>Vote Threshold:</strong> {motion.threshold}</p>
+
+                        <div className="motion-actions">
+                            {motion.status === 'active' && isCommitteeOwner && (
+                                <button className="close-voting-btn" onClick={() => handleCloseMotionVoting(motion.id)}>Close Voting</button>
+                            )}
+                            {motion.status === 'closed' && isCommitteeOwner && (
+                                <button className="approve-motion-btn" onClick={() => handleApproveMotion(motion.id)}>Approve Motion</button>
+                            )}
+                        </div>
 
                         <div className="replies">
                             <h3>Discussion</h3>
@@ -230,13 +299,14 @@ export default function Motions() {
                                     value={replyInputs[motion.id] || ''}
                                     onChange={(e) => handleInputChange(motion.id, e.target.value)}
                                     className="reply-input"
+                                    disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}
                                 />
-                                <select value={replyStances[motion.id] || 'pro'} onChange={(e) => handleStanceChange(motion.id, e.target.value)} className="reply-select">
+                                <select value={replyStances[motion.id] || 'pro'} onChange={(e) => handleStanceChange(motion.id, e.target.value)} className="reply-select" disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>
                                     <option value="pro">Pro</option>
                                     <option value="con">Con</option>
                                     <option value="neutral">Neutral</option>
                                 </select>
-                                <button onClick={() => addReply(motion.id)} className="reply-button">Add Reply</button>
+                                <button onClick={() => addReply(motion.id)} className="reply-button" disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>Add Reply</button>
                             </div>
                         </div>
 
@@ -246,19 +316,19 @@ export default function Motions() {
                                 <div className="vote-card yes-card">
                                     <div className="vote-icon">✓</div>
                                     <div className="vote-count">{VOTE_LABELS.yes}: {motion.tally?.yes || 0}</div>
-                                    <button className="vote-btn vote-yes" onClick={() => vote(null, motion.id, 'yes')}>{`Vote ${VOTE_LABELS.yes}`}</button>
+                                    <button className="vote-btn vote-yes" onClick={() => vote(null, motion.id, 'yes')} disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{`Vote ${VOTE_LABELS.yes}`}</button>
                                 </div>
 
                                 <div className="vote-card no-card">
                                     <div className="vote-icon">✕</div>
                                     <div className="vote-count">{VOTE_LABELS.no}: {motion.tally?.no || 0}</div>
-                                    <button className="vote-btn vote-no" onClick={() => vote(null, motion.id, 'no')}>{`Vote ${VOTE_LABELS.no}`}</button>
+                                    <button className="vote-btn vote-no" onClick={() => vote(null, motion.id, 'no')} disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{`Vote ${VOTE_LABELS.no}`}</button>
                                 </div>
 
                                 <div className="vote-card abstain-card">
                                     <div className="vote-icon">—</div>
                                     <div className="vote-count">{VOTE_LABELS.abstain}: {motion.tally?.abstain || 0}</div>
-                                    <button className="vote-btn vote-abstain" onClick={() => vote(null, motion.id, 'abstain')}>{VOTE_LABELS.abstain}</button>
+                                    <button className="vote-btn vote-abstain" onClick={() => vote(null, motion.id, 'abstain')} disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{VOTE_LABELS.abstain}</button>
                                 </div>
                             </div>
                         </div>

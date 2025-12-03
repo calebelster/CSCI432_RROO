@@ -96,10 +96,17 @@ function HomePage({ currentUser }) {
                     settings: d.settings || {},
                     date: d.createdAt
                         ? (d.createdAt.toDate ? d.createdAt.toDate().toLocaleDateString() : String(d.createdAt))
-                        : ''
+                        : '',
+                    rawCreatedAt: d.createdAt // Store the raw timestamp for sorting
                 };
             });
             const committees = (await Promise.all(committeePromises)).filter(Boolean);
+            // Sort committees by creation date, most recent first
+            committees.sort((a, b) => {
+                const dateA = a.rawCreatedAt ? a.rawCreatedAt.toDate().getTime() : 0;
+                const dateB = b.rawCreatedAt ? b.rawCreatedAt.toDate().getTime() : 0;
+                return dateB - dateA;
+            });
             setHomeData(prev => {
                 const out = { ...prev, committees };
                 // update stats count
