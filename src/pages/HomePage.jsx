@@ -1,9 +1,9 @@
 // File: src/HomePage.jsx
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import './HomePage.css';
-import { createCommittee } from './firebase/committees';
-import { db } from './firebase/firebase';
+import '../styles/HomePage.css';
+import { createCommittee } from '../firebase/committees';
+import { db } from '../firebase/firebase';
 import { collectionGroup, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 
 function HomePage({ currentUser }) {

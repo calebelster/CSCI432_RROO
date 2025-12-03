@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import './LoginPage.css';
-import { doSignInWithEmailAndPassword } from './firebase/auth';
+import '../styles/LoginPage.css';
+import { doSignInWithEmailAndPassword } from '../firebase/auth';
 
 const LoginPage = () => {
     const navigate = useNavigate();

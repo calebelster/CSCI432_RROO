@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import './SignUp.css';
-import { doCreateUserWithEmailAndPassword, doSendEmailVerification } from './firebase/auth';
-import { db } from './firebase/firebase';
+import '../styles/SignUp.css';
+import { doCreateUserWithEmailAndPassword, doSendEmailVerification } from '../firebase/auth';
+import { db } from '../firebase/firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import { auth } from './firebase/firebase';
+import { auth } from '../firebase/firebase';
 import { updateProfile } from 'firebase/auth';
 
 const SignUpPage = () => {

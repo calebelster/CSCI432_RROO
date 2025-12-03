@@ -1,9 +1,9 @@
 // javascript
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import './Motions.css';
-import { replyToMotion, castVote } from './firebase/committees';
-import { db } from './firebase/firebase';
+import '../styles/Motions.css';
+import { replyToMotion, castVote } from '../firebase/committees';
+import { db } from '../firebase/firebase';
 import { collection, onSnapshot, doc, getDocs, getDoc } from 'firebase/firestore';
 
 export default function Motions() {

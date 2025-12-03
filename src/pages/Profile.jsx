@@ -1,11 +1,11 @@
 // File: `src/Profile.jsx`
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './Profile.css';
-import { auth } from './firebase/firebase';
+import '../styles/Profile.css';
+import { auth } from '../firebase/firebase';
 import { updateProfile, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
-import { updateDisplayName } from './firebase/committees';
-import { doSignOut } from './firebase/auth';
+import { updateDisplayName } from '../firebase/committees';
+import { doSignOut } from '../firebase/auth';
 
 export default function Profile({ currentUser }) {
     const navigate = useNavigate();
@@ -79,7 +79,7 @@ export default function Profile({ currentUser }) {
                 await reauthenticateWithCredential(auth.currentUser, cred);
             }
             // Use modular helper to update password
-            const { doPasswordChange } = await import('./firebase/auth');
+            const { doPasswordChange } = await import('../firebase/auth');
             await doPasswordChange(newPassword);
             setPwStatus('Password updated');
             setCurrentPassword('');

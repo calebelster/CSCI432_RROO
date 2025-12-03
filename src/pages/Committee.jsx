@@ -1,9 +1,9 @@
 // javascript
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import './Committee.css';
-import { createMotion } from './firebase/committees';
-import { db } from './firebase/firebase';
+import '../styles/Committee.css';
+import { createMotion } from '../firebase/committees';
+import { db } from '../firebase/firebase';
 import { collection, doc, getDocs, query, where, onSnapshot, getDoc } from 'firebase/firestore';
 
 export default function Committee() {

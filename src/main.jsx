@@ -6,16 +6,16 @@ import { auth } from './firebase/firebase'
 
 import { useState, useEffect } from 'react'
 
-import LandingPage from './LandingPage.jsx'
-import LoginPage from './Login.jsx'
-import SignUpPage from './SignUp.jsx'
-import Footer from './Footer.jsx'
-import HomePage from './HomePage.jsx'
-import Committee from './Committee.jsx'
-import Motions from './Motions.jsx'
-import Profile from './Profile.jsx'
+import LandingPage from './pages/LandingPage.jsx'
+import LoginPage from './pages/Login.jsx'
+import SignUpPage from './pages/SignUp.jsx'
+import Footer from './components/Footer.jsx'
+import HomePage from './pages/HomePage.jsx'
+import Committee from './pages/Committee.jsx'
+import Motions from './pages/Motions.jsx'
+import Profile from './pages/Profile.jsx'
 
-import './index.css'
+import './styles/index.css'
 
 
 
