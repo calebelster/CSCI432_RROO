@@ -547,7 +547,7 @@ h1 {
     border-radius: 10px;
     border: 1px solid #e6e7eb;
     background: #f3f4f6;
-    resize: vertical;
+    resize: none;
     font-family: var(--font, Arial, Helvetica, sans-serif);
 }
 
