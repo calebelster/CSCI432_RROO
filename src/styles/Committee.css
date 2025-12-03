@@ -192,7 +192,9 @@ button {
 	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
 }
 
-.motion-card { position: relative; }
+.motion-card {
+	position: relative;
+}
 
 .motion-card-header {
 	display: flex;
@@ -262,7 +264,7 @@ button {
 	width: 36px;
 	height: 36px;
 	border-radius: 50%;
-	background: rgba(0,0,0,0.06);
+	background: rgba(0, 0, 0, 0.06);
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -287,6 +289,21 @@ button {
 	gap: 10px;
 }
 
+/* Row used in motion list cards to align creator on left and created date on the right */
+.motion-meta-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.motion-meta-right .date,
+.motion-meta-row .date {
+	color: var(--text);
+	opacity: 0.85;
+	font-size: 0.95rem;
+}
+
 /* On small screens, stack them vertically for readability */
 @media (max-width: 420px) {
 	.motion-meta-text {
@@ -304,9 +321,13 @@ button {
 	cursor: pointer;
 }
 
-.view-details-btn:hover { background: rgba(255,255,255,0.02); }
+.view-details-btn:hover {
+	background: rgba(255, 255, 255, 0.02);
+}
 
-.close-voting-btn, .delete-motion-btn, .approve-motion-btn {
+.close-voting-btn,
+.delete-motion-btn,
+.approve-motion-btn {
 	background: transparent;
 	border: 1px solid var(--border-color);
 	padding: 6px 10px;
@@ -314,8 +335,10 @@ button {
 	cursor: pointer;
 }
 
-.close-voting-btn:hover, .delete-motion-btn:hover, .approve-motion-btn:hover {
-	background: rgba(255,255,255,0.02);
+.close-voting-btn:hover,
+.delete-motion-btn:hover,
+.approve-motion-btn:hover {
+	background: rgba(255, 255, 255, 0.02);
 }
 
 .motion-meta .creator {
@@ -361,7 +384,7 @@ button {
 .members-card {
 	background: var(--card);
 	border-radius: 10px;
-	box-shadow: 0 8px 20px rgba(2,6,23,0.06);
+	box-shadow: 0 8px 20px rgba(2, 6, 23, 0.06);
 	padding: 6px 12px;
 	margin-top: 12px;
 }

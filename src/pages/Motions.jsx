@@ -82,7 +82,8 @@ export default function Motions() {
                     status: md.status || 'active',
                     replies: md.replies || [],
                     tally: md.tally || { yes: 0, no: 0, abstain: 0 },
-                    threshold: md.threshold || 'Simple Majority' // Use threshold
+                    threshold: md.threshold || 'Simple Majority', // Use threshold
+                    createdAt: md.createdAt || md.created || md.created_at || null
                 };
             });
 
@@ -111,7 +112,8 @@ export default function Motions() {
                             status: m.status,
                             replies: m.replies,
                             tally: m.tally,
-                            threshold: m.threshold // Ensure threshold is passed through
+                            threshold: m.threshold, // Ensure threshold is passed through
+                            createdAt: m.createdAt || null
                         };
                     }).sort((a, b) => (b.id || '').localeCompare(a.id || ''));
 
@@ -256,6 +258,19 @@ export default function Motions() {
         } catch (e) { }
     }, [location.search]);
 
+    // helper to format createdAt fields from Firestore Timestamps or ISO strings
+    function formatDateField(value) {
+        if (!value) return '';
+        try {
+            if (value.toDate && typeof value.toDate === 'function') {
+                return value.toDate().toLocaleDateString();
+            }
+            const d = new Date(value);
+            if (!isNaN(d.getTime())) return d.toLocaleDateString();
+        } catch (e) { }
+        return String(value);
+    }
+
     // If the URL requested a specific motion and we have a single motion, render the detail view
     const params = new URLSearchParams(location.search);
     const motionIdParam = params.get('id');
@@ -279,9 +294,7 @@ export default function Motions() {
         }
 
         const authorName = motion.creator || motion.author || motion.createdBy || 'Unknown';
-        const seconderName = motion.seconder || motion.secondedBy || motion.seconderName || '—';
         const createdAt = formatDateField(motion.createdAt || motion.created || motion.created_at);
-        const votingStartedAt = formatDateField(motion.votingStartedAt || motion.votingStarted || motion.voting_started_at);
         const motionType = motion.type || motion.motionType || 'Main';
         const requiresDiscussion = (typeof motion.requiresDiscussion !== 'undefined') ? motion.requiresDiscussion : (motion.requires_discussion || true);
         const voteThreshold = motion.threshold || motion.voteThreshold || 'Simple Majority';
@@ -289,7 +302,7 @@ export default function Motions() {
             <div className="motions-page motion-detail">
                 <button className="back-button" onClick={() => navigate(-1)} aria-label="Back to Motions">
                     <span className="back-arrow">←</span>
-                    <span className="back-label">Back to Motions</span>
+                    <span className="back-label">Back</span>
                 </button>
 
                 <div className="detail-top">
@@ -299,7 +312,6 @@ export default function Motions() {
                     </div>
                     <div className="detail-actions">
                         <span className="role-badge">Member</span>
-                        <button className="new-motion">+ New Motion</button>
                     </div>
                 </div>
 
@@ -319,20 +331,11 @@ export default function Motions() {
                         </div>
                     </div>
 
-                    <div className="card small-card">
-                        <div className="card-label">Seconder</div>
-                        <div className="card-body">
-                            <div className="avatar">{(seconderName || '').split(' ').map(n => n[0]).slice(0, 2).join('')}</div>
-                            <div className="card-name">{seconderName}</div>
-                            <div className="card-sub">{motion.seconderEmail || motion.secondEmail || ''}</div>
-                        </div>
-                    </div>
 
                     <div className="card timeline-card">
                         <div className="card-label">Timeline</div>
                         <div className="card-body timeline-body">
-                            <div><strong>Created:</strong> {createdAt}</div>
-                            <div><strong>Voting Started:</strong> {votingStartedAt}</div>
+                            <div><strong>Created:</strong> {createdAt || '—'}</div>
                         </div>
                     </div>
                 </div>
@@ -422,7 +425,15 @@ export default function Motions() {
                     <div id={`motion-${motion.id}`} key={motion.id} className={`motion motion-${(motion.status || '').toLowerCase()}`}>
                         <h2>{motion.title}</h2>
                         <p><strong>Description:</strong> {motion.description}</p>
-                        <p><strong>Creator:</strong> {motion.creator}</p>
+                        <p><strong>Creator:</strong> {motion.creator} <span style={{ marginLeft: 12, color: 'var(--text)', opacity: 0.85 }}>{formatDateField(motion.createdAt)}</span></p>
+                        <div className="motion-meta-row">
+                            <div className="motion-meta">
+                                <span className="creator">{motion.creator}</span>
+                            </div>
+                            <div className="motion-meta-right">
+                                <span className="date">{formatDateField(motion.createdAt) || '—'}</span>
+                            </div>
+                        </div>
                         <p><strong>Status:</strong> {motion.status}</p>
                         <p><strong>Vote Threshold:</strong> {motion.threshold}</p>
 
