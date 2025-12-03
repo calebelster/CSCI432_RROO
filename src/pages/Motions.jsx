@@ -37,20 +37,8 @@ export default function Motions() {
         } catch (e) { cid = null; }
 
         if (!cid) {
-            // fallback: try to read all motions from localStorage
-            try {
-                const raw = localStorage.getItem('homeData');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    // flatten local motions
-                    const all = [];
-                    for (const k in parsed.committeeData || {}) {
-                        const cm = parsed.committeeData[k];
-                        (cm.motions || []).forEach(m => all.push({ ...m, threshold: m.threshold || 'Simple Majority' })); // Use threshold
-                    }
-                    setMotions(all);
-                }
-            } catch (e) { }
+            // No committee context available — server-only app: show no motions
+            setMotions([]);
             return;
         }
 

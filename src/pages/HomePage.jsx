@@ -9,23 +9,16 @@ import { collectionGroup, query, where, onSnapshot, getDoc, doc } from 'firebase
 function HomePage({ currentUser }) {
     const navigate = useNavigate();
 
-    // Setup initial state with fallback values
-    const [homeData, setHomeData] = useState(() => {
-        try {
-            const raw = localStorage.getItem('homeData');
-            if (raw) return JSON.parse(raw);
-        } catch (e) {}
-        return {
-            profile: { name: 'Profile Name' },
-            stats: [
-                { title: 'Your Committees', value: 0, description: "Active committees you're part of" },
-                { title: 'Pending Motions', value: 0, description: "Motions requiring your attention" },
-                { title: 'Upcoming Meetings', value: 0, description: 'Scheduled for this week' }
-            ],
-            committees: [],
-            committeeData: {}
-        };
-    });
+    // Setup initial state (server-backed only; no localStorage fallback)
+    const [homeData, setHomeData] = useState(() => ({
+        profile: { name: 'Profile Name' },
+        stats: [
+            { title: 'Your Committees', value: 0, description: "Active committees you're part of" },
+            { title: 'Pending Motions', value: 0, description: "Motions requiring your attention" }
+        ],
+        committees: [],
+        committeeData: {}
+    }));
 
     const [modalOpen, setModalOpen] = useState(false);
     const [newCommittee, setNewCommittee] = useState({ name: '', description: '' });
@@ -34,12 +27,7 @@ function HomePage({ currentUser }) {
     const [confirmDeleteFor, setConfirmDeleteFor] = useState(null);
     const [creating, setCreating] = useState(false);
 
-    // Persist to localStorage whenever homeData changes
-    useEffect(() => {
-        try {
-            localStorage.setItem('homeData', JSON.stringify(homeData));
-        } catch (e) {}
-    }, [homeData]);
+    // No local persistence: homeData is authoritative from server and runtime state only
 
     // Redirect if not signed in, and update profile name
     useEffect(() => {
@@ -180,9 +168,6 @@ function HomePage({ currentUser }) {
             const stats = [...(prev.stats || [])];
             if (stats[0]) stats[0] = { ...stats[0], value: committees.length };
             const out = { ...prev, committees, committeeData, stats };
-            try {
-                localStorage.setItem('homeData', JSON.stringify(out));
-            } catch (e) {}
             return out;
         });
 
@@ -209,9 +194,6 @@ function HomePage({ currentUser }) {
             const stats = [...(prev.stats || [])];
             if (stats[0]) stats[0] = { ...stats[0], value: committees.length };
             const out = { ...prev, committees, committeeData, stats };
-            try {
-                localStorage.setItem('homeData', JSON.stringify(out));
-            } catch (e) {}
             return out;
         });
     }

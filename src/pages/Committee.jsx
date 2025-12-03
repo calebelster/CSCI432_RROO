@@ -54,20 +54,10 @@ export default function Committee() {
                 const q = query(collection(db, 'committees'), where('name', '==', committeeName));
                 const snaps = await getDocs(q);
                 if (snaps.empty) {
-                    // fallback to localStorage if present
-                    try {
-                        const raw = localStorage.getItem('homeData');
-                        if (raw) {
-                            const parsed = JSON.parse(raw);
-                            const localCommittee = (parsed.committees || []).find(c => c.name === committeeName) || { name: committeeName, description: '' };
-                            const localData = parsed.committeeData ? parsed.committeeData[committeeName] : { members: [], motions: [], meetings: [] };
-                            setCommitteeInfo(localCommittee);
-                            setCommitteeData(localData || { members: [], motions: [], meetings: [] });
-                        } else {
-                            setCommitteeInfo({ name: committeeName, description: '' });
-                        }
-                        return;
-                    } catch (e) { console.warn(e); }
+                    // No server committee found — show empty/default state (no localStorage fallback)
+                    setCommitteeInfo({ name: committeeName, description: '' });
+                    setCommitteeData({ members: [], motions: [], meetings: [] });
+                    return;
                 }
 
                 // use first matching committee
@@ -201,16 +191,7 @@ export default function Committee() {
                 anonymousVotes: motionPayload.anonymousVotes,
             };
             setCommitteeData(prev => ({ ...prev, motions: [newMotion, ...(prev.motions || [])] }));
-            try {
-                const raw = localStorage.getItem('homeData');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    parsed.committeeData = parsed.committeeData || {};
-                    parsed.committeeData[committeeName] = parsed.committeeData[committeeName] || { members: [], motions: [] };
-                    parsed.committeeData[committeeName].motions = [newMotion, ...(parsed.committeeData[committeeName].motions || [])];
-                    localStorage.setItem('homeData', JSON.stringify(parsed));
-                }
-            } catch (err) {}
+            // No localStorage persistence — do not persist fallback motions locally
         }
 
         closeModal();
@@ -268,15 +249,7 @@ export default function Committee() {
     }
 
     function performDelete() {
-        try {
-            const raw = localStorage.getItem('homeData');
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                parsed.committees = (parsed.committees || []).filter(c => c.name !== committeeName);
-                if (parsed.committeeData && parsed.committeeData[committeeName]) delete parsed.committeeData[committeeName];
-                localStorage.setItem('homeData', JSON.stringify(parsed));
-            }
-        } catch (e) {}
+        // No localStorage: deletion is server-side only (caller should remove from server or rely on server sync)
         navigate('/home');
     }
 

@@ -18,15 +18,7 @@ export default function Profile({ currentUser }) {
 
     useEffect(() => {
         if (currentUser) setName(currentUser.displayName || currentUser.email || '');
-        else {
-            try {
-                const raw = localStorage.getItem('homeData');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (parsed && parsed.profile && parsed.profile.name) setName(parsed.profile.name);
-                }
-            } catch (e) {}
-        }
+        else setName('');
     }, [currentUser]);
 
     async function handleSave(e) {
@@ -43,15 +35,7 @@ export default function Profile({ currentUser }) {
                 }
             }
 
-            try {
-                const raw = localStorage.getItem('homeData');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    parsed.profile = parsed.profile || {};
-                    parsed.profile.name = name;
-                    localStorage.setItem('homeData', JSON.stringify(parsed));
-                }
-            } catch (e) {}
+            // No localStorage persistence — profile changes are mirrored to Firestore via updateDisplayName
 
             setStatus('Saved');
             setTimeout(() => setStatus(''), 1600);
