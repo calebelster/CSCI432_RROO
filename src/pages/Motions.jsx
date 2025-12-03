@@ -13,6 +13,7 @@ export default function Motions() {
     const [replyInputs, setReplyInputs] = useState({});
     const [replyStances, setReplyStances] = useState({});
     const [committeeOwnerUid, setCommitteeOwnerUid] = useState(null); // New state for committee owner UID
+    const [selectedTab, setSelectedTab] = useState('overview');
 
     // Centralized labels for vote buttons so they can be changed in one place
     const VOTE_LABELS = {
@@ -49,7 +50,7 @@ export default function Motions() {
                     }
                     setMotions(all);
                 }
-            } catch (e) {}
+            } catch (e) { }
             return;
         }
 
@@ -112,15 +113,15 @@ export default function Motions() {
                             tally: m.tally,
                             threshold: m.threshold // Ensure threshold is passed through
                         };
-                    }).sort((a,b) => (b.id || '').localeCompare(a.id || ''));
-                    
+                    }).sort((a, b) => (b.id || '').localeCompare(a.id || ''));
+
                     if (motionId) { // Filter if motionId is present
                         docs = docs.filter(m => m.id === motionId);
                     }
                     setMotions(docs);
                 } catch (e) {
                     // fallback to raw list if enrichment fails
-                    let docs = raw.map(m => ({ id: m.id, title: m.title, description: m.description, creator: m.creator || (m.creatorUid || ''), status: m.status, replies: m.replies, tally: m.tally, threshold: m.threshold })).sort((a,b) => (b.id || '').localeCompare(a.id || '')); // Ensure threshold is passed through
+                    let docs = raw.map(m => ({ id: m.id, title: m.title, description: m.description, creator: m.creator || (m.creatorUid || ''), status: m.status, replies: m.replies, tally: m.tally, threshold: m.threshold })).sort((a, b) => (b.id || '').localeCompare(a.id || '')); // Ensure threshold is passed through
                     if (motionId) { // Filter if motionId is present
                         docs = docs.filter(m => m.id === motionId);
                     }
@@ -252,9 +253,163 @@ export default function Motions() {
                     setTimeout(() => el.classList.remove('focused-motion'), 2200);
                 }
             }
-        } catch (e) {}
+        } catch (e) { }
     }, [location.search]);
 
+    // If the URL requested a specific motion and we have a single motion, render the detail view
+    const params = new URLSearchParams(location.search);
+    const motionIdParam = params.get('id');
+    const isDetailView = motionIdParam && motions.length === 1;
+
+    if (isDetailView) {
+        const motion = motions[0];
+
+        function formatDateField(value) {
+            if (!value) return '';
+            try {
+                // Firestore Timestamp object
+                if (value.toDate && typeof value.toDate === 'function') {
+                    const d = value.toDate();
+                    return d.toLocaleDateString();
+                }
+                const d = new Date(value);
+                if (!isNaN(d.getTime())) return d.toLocaleDateString();
+            } catch (e) { }
+            return String(value);
+        }
+
+        const authorName = motion.creator || motion.author || motion.createdBy || 'Unknown';
+        const seconderName = motion.seconder || motion.secondedBy || motion.seconderName || '—';
+        const createdAt = formatDateField(motion.createdAt || motion.created || motion.created_at);
+        const votingStartedAt = formatDateField(motion.votingStartedAt || motion.votingStarted || motion.voting_started_at);
+        const motionType = motion.type || motion.motionType || 'Main';
+        const requiresDiscussion = (typeof motion.requiresDiscussion !== 'undefined') ? motion.requiresDiscussion : (motion.requires_discussion || true);
+        const voteThreshold = motion.threshold || motion.voteThreshold || 'Simple Majority';
+        return (
+            <div className="motions-page motion-detail">
+                <button className="back-button" onClick={() => navigate(-1)} aria-label="Back to Motions">
+                    <span className="back-arrow">←</span>
+                    <span className="back-label">Back to Motions</span>
+                </button>
+
+                <div className="detail-top">
+                    <div className="detail-title">
+                        <h1>{motion.title}</h1>
+                        <p className="subtitle">{motion.description || 'Motion details and timeline'}</p>
+                    </div>
+                    <div className="detail-actions">
+                        <span className="role-badge">Member</span>
+                        <button className="new-motion">+ New Motion</button>
+                    </div>
+                </div>
+
+                <div className="tabs" role="tablist">
+                    <button aria-selected={selectedTab === 'overview'} onClick={() => setSelectedTab('overview')} className={`tab ${selectedTab === 'overview' ? 'active' : ''}`}>Overview</button>
+                    <button aria-selected={selectedTab === 'discussion'} onClick={() => setSelectedTab('discussion')} className={`tab ${selectedTab === 'discussion' ? 'active' : ''}`}>Discussion</button>
+                    <button aria-selected={selectedTab === 'voting'} onClick={() => setSelectedTab('voting')} className={`tab ${selectedTab === 'voting' ? 'active' : ''}`}>Voting</button>
+                </div>
+
+                <div className="cards-row">
+                    <div className="card small-card">
+                        <div className="card-label">Author</div>
+                        <div className="card-body">
+                            <div className="avatar">{(authorName || '').split(' ').map(n => n[0]).slice(0, 2).join('')}</div>
+                            <div className="card-name">{authorName}</div>
+                            <div className="card-sub">{(motion.creatorEmail || motion.email || (authorName?.toLowerCase?.().includes('@') ? authorName : ''))}</div>
+                        </div>
+                    </div>
+
+                    <div className="card small-card">
+                        <div className="card-label">Seconder</div>
+                        <div className="card-body">
+                            <div className="avatar">{(seconderName || '').split(' ').map(n => n[0]).slice(0, 2).join('')}</div>
+                            <div className="card-name">{seconderName}</div>
+                            <div className="card-sub">{motion.seconderEmail || motion.secondEmail || ''}</div>
+                        </div>
+                    </div>
+
+                    <div className="card timeline-card">
+                        <div className="card-label">Timeline</div>
+                        <div className="card-body timeline-body">
+                            <div><strong>Created:</strong> {createdAt}</div>
+                            <div><strong>Voting Started:</strong> {votingStartedAt}</div>
+                        </div>
+                    </div>
+                </div>
+                {/* Panels: show only the selected tab content to match design */}
+                {selectedTab === 'overview' && (
+                    <>
+                        <div className="motion-details-box">
+                            <h3>Motion Details</h3>
+                            <div className="details-grid">
+                                <div><strong>Type:</strong> {motionType}</div>
+                                <div><strong>Vote Threshold:</strong> {voteThreshold}</div>
+                                <div><strong>Requires Discussion:</strong> <span className="yes">{requiresDiscussion ? 'Yes' : 'No'}</span></div>
+                                <div><strong>Status:</strong> {motion.status}</div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {selectedTab === 'discussion' && (
+                    <div className="discussion-section">
+                        <h4>Discussion</h4>
+                        {(!motion.replies || motion.replies.length === 0) ? (
+                            <div className="no-replies">No replies yet.</div>
+                        ) : (
+                            motion.replies.map((reply, idx) => (
+                                <div className="reply" key={idx}>
+                                    <strong>{reply.user || reply.authorUid} ({reply.stance || 'neutral'}):</strong> {reply.text || reply.message || ''}
+                                </div>
+                            ))
+                        )}
+
+                        <div className="reply-form" style={{ marginTop: 12 }}>
+                            <input
+                                type="text"
+                                placeholder="Add a reply..."
+                                value={replyInputs[motion.id] || ''}
+                                onChange={(e) => handleInputChange(motion.id, e.target.value)}
+                                className="reply-input"
+                                disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}
+                            />
+                            <select value={replyStances[motion.id] || 'pro'} onChange={(e) => handleStanceChange(motion.id, e.target.value)} className="reply-select" disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>
+                                <option value="pro">Pro</option>
+                                <option value="con">Con</option>
+                                <option value="neutral">Neutral</option>
+                            </select>
+                            <button onClick={() => addReply(motion.id)} className="reply-button" disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>Add Reply</button>
+                        </div>
+                    </div>
+                )}
+
+                {selectedTab === 'voting' && (
+                    <div className="voting-section">
+                        <h4>Voting</h4>
+                        <div className="vote-grid">
+                            <div className="vote-card yes-card">
+                                <div className="vote-icon">✓</div>
+                                <div className="vote-count">{VOTE_LABELS.yes}: {motion.tally?.yes || 0}</div>
+                                <button className="vote-btn vote-yes" onClick={() => vote(null, motion.id, 'yes')} disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{`Vote ${VOTE_LABELS.yes}`}</button>
+                            </div>
+                            <div className="vote-card no-card">
+                                <div className="vote-icon">✕</div>
+                                <div className="vote-count">{VOTE_LABELS.no}: {motion.tally?.no || 0}</div>
+                                <button className="vote-btn vote-no" onClick={() => vote(null, motion.id, 'no')} disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{`Vote ${VOTE_LABELS.no}`}</button>
+                            </div>
+                            <div className="vote-card abstain-card">
+                                <div className="vote-icon">—</div>
+                                <div className="vote-count">{VOTE_LABELS.abstain}: {motion.tally?.abstain || 0}</div>
+                                <button className="vote-btn vote-abstain" onClick={() => vote(null, motion.id, 'abstain')} disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{VOTE_LABELS.abstain}</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Default list view when not in a detail route
     return (
         <div className="motions-page">
             <button className="back-button" onClick={() => navigate(-1)} aria-label="Go back">
@@ -264,7 +419,7 @@ export default function Motions() {
             <h1>Motions</h1>
             <div id="motions-container">
                 {motions.map((motion) => (
-                    <div id={`motion-${motion.id}`} key={motion.id} className={`motion motion-${motion.status.toLowerCase()}`}>
+                    <div id={`motion-${motion.id}`} key={motion.id} className={`motion motion-${(motion.status || '').toLowerCase()}`}>
                         <h2>{motion.title}</h2>
                         <p><strong>Description:</strong> {motion.description}</p>
                         <p><strong>Creator:</strong> {motion.creator}</p>
