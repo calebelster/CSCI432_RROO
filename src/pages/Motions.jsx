@@ -355,33 +355,86 @@ export default function Motions() {
                 )}
 
                 {selectedTab === 'discussion' && (
-                    <div className="discussion-section">
-                        <h4>Discussion</h4>
-                        {(!motion.replies || motion.replies.length === 0) ? (
-                            <div className="no-replies">No replies yet.</div>
-                        ) : (
-                            motion.replies.map((reply, idx) => (
-                                <div className="reply" key={idx}>
-                                    <strong>{reply.user || reply.authorUid} ({reply.stance || 'neutral'}):</strong> {reply.text || reply.message || ''}
-                                </div>
-                            ))
-                        )}
+                    <div className="discussion-wrapper">
+                        <div className="discussion-overview card">
+                            <h4><span style={{ marginRight: 8 }}>💬</span>Discussion Overview</h4>
+                            <p className="sub">Member comments and positions on this motion</p>
+                            <div className="discussion-stats">
+                                {(() => {
+                                    const counts = { supporting: 0, opposing: 0, neutral: 0 };
+                                    (motion.replies || []).forEach(r => {
+                                        const s = (r.stance || '').toLowerCase();
+                                        if (s === 'pro' || s === 'support') counts.supporting++;
+                                        else if (s === 'con' || s === 'opp' || s === 'opposing') counts.opposing++;
+                                        else counts.neutral++;
+                                    });
+                                    return (
+                                        <>
+                                            <div className="stat">
+                                                <div className="stat-count supporting">{counts.supporting}</div>
+                                                <div className="stat-label">Supporting</div>
+                                            </div>
+                                            <div className="stat">
+                                                <div className="stat-count opposing">{counts.opposing}</div>
+                                                <div className="stat-label">Opposing</div>
+                                            </div>
+                                            <div className="stat">
+                                                <div className="stat-count neutral">{counts.neutral}</div>
+                                                <div className="stat-label">Neutral</div>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </div>
 
-                        <div className="reply-form" style={{ marginTop: 12 }}>
-                            <input
-                                type="text"
-                                placeholder="Add a reply..."
+                        <div className="discussion-add card">
+                            <h4>Add to Discussion</h4>
+                            <p className="sub">Share your thoughts and position on this motion</p>
+                            <textarea
+                                className="discussion-text"
+                                placeholder="Share your thoughts on this motion..."
                                 value={replyInputs[motion.id] || ''}
                                 onChange={(e) => handleInputChange(motion.id, e.target.value)}
-                                className="reply-input"
+                                rows={4}
                                 disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}
                             />
-                            <select value={replyStances[motion.id] || 'pro'} onChange={(e) => handleStanceChange(motion.id, e.target.value)} className="reply-select" disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>
-                                <option value="pro">Pro</option>
-                                <option value="con">Con</option>
-                                <option value="neutral">Neutral</option>
-                            </select>
-                            <button onClick={() => addReply(motion.id)} className="reply-button" disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>Add Reply</button>
+
+                            <div className="discussion-controls">
+                                <div className="position-select">
+                                    <label className="small-label">Your Position</label>
+                                    <select value={replyStances[motion.id] || 'neutral'} onChange={(e) => handleStanceChange(motion.id, e.target.value)} className="reply-select" disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>
+                                        <option value="pro">Supporting</option>
+                                        <option value="con">Opposing</option>
+                                        <option value="neutral">Neutral</option>
+                                    </select>
+                                </div>
+
+                                <div className="post-action">
+                                    <button onClick={() => addReply(motion.id)} className="post-comment-btn" disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>Post Comment</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="discussion-comments card">
+                            <h4>Comments ({(motion.replies || []).length})</h4>
+                            <p className="sub">Member discussions on this motion</p>
+                            <div className="comments-list">
+                                {(!motion.replies || motion.replies.length === 0) ? (
+                                    <div className="no-comments">
+                                        <div className="no-icon">🗨️</div>
+                                        <div className="no-title">No Comments Yet</div>
+                                        <div className="no-sub">Be the first to share your thoughts on this motion</div>
+                                    </div>
+                                ) : (
+                                    motion.replies.map((reply, idx) => (
+                                        <div className="comment-item" key={idx}>
+                                            <div className="comment-meta"><strong>{reply.user || reply.authorUid || 'Member'}</strong> · <span className="comment-stance">{reply.stance || 'neutral'}</span></div>
+                                            <div className="comment-body">{reply.text || reply.message || ''}</div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}

@@ -458,3 +458,166 @@ h1 {
         flex-direction: column;
     }
 }
+
+/* Discussion-specific styles (appended to fix earlier failed patch) */
+.discussion-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.discussion-overview.card {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+}
+
+/* Make discussion cards fill most of the page width with side margins and softer rounding */
+.discussion-wrapper>.card,
+.discussion-overview.card,
+.discussion-add.card,
+.discussion-comments.card,
+.comments-list {
+    max-width: 980px;
+    width: 100%;
+    margin: 12px auto;
+    box-sizing: border-box;
+}
+
+.discussion-overview.card,
+.discussion-add.card,
+.discussion-comments.card {
+    border-radius: 14px;
+    padding: 18px 22px;
+    background: #ffffff;
+    border: 1px solid #e6e7eb;
+    box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
+}
+
+.discussion-stats {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+}
+
+.discussion-stat {
+    background: transparent;
+    padding: 6px 8px;
+    min-width: 110px;
+    text-align: center;
+}
+
+.discussion-stat .stat-count {
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+
+.discussion-stat .stat-label {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.discussion-stat.supporting .stat-count {
+    color: #16a34a;
+}
+
+.discussion-stat.opposing .stat-count {
+    color: #ef4444;
+}
+
+.discussion-stat.neutral .stat-count {
+    color: #6b7280;
+}
+
+.discussion-add.card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+}
+
+.discussion-textarea,
+.discussion-text {
+    width: 100%;
+    min-height: 86px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1px solid #e6e7eb;
+    background: #f3f4f6;
+    resize: vertical;
+    font-family: var(--font, Arial, Helvetica, sans-serif);
+}
+
+.post-comment-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.post-comment-btn {
+    background: #6b7280;
+    color: #ffffff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.comment-item {
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.comment-item .comment-meta {
+    font-size: 13px;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.comment-item .comment-body {
+    background: #f3f4f6;
+    padding: 12px 14px;
+    border-radius: 10px;
+    color: var(--text);
+}
+
+.comments-list .comment-item {
+    width: 100%;
+}
+
+.comment-body {
+    flex: 1;
+}
+
+.comment-meta {
+    font-size: 12px;
+    color: #6b7280;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+@media (max-width: 900px) {
+    .discussion-overview.card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .discussion-stats {
+        justify-content: space-between;
+    }
+}
