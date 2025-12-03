@@ -115,7 +115,7 @@ export default function Committee() {
                             id: d.id,
                             name: md.title || md.name || 'Untitled Motion',
                             description: md.description || '',
-                            creator: md.creatorUid || md.creator || '',
+                            creator: md.creatorDisplayName || md.creatorUid || md.creator || '',
                             date: md.createdAt && md.createdAt.toDate ? new Date(md.createdAt.toDate()).toLocaleDateString() : '',
                             status: md.status || 'active',
                             type: md.type || '',

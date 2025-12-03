@@ -14,6 +14,7 @@ export async function createCommittee({ name, description, settings = {} }) {
         name,
         description,
         ownerUid: auth.currentUser.uid,
+        ownerDisplayName: auth.currentUser.displayName,
         settings,
         createdAt: serverTimestamp()
     });
@@ -52,6 +53,7 @@ export async function createMotion(committeeId, motion) {
     const docRef = await addDoc(motionsCol, {
         ...motion,
         creatorUid: auth.currentUser.uid,
+        creatorDisplayName: auth.currentUser.displayName,
         status: 'active',
         tally: { yes: 0, no: 0, abstain: 0 },
         createdAt: serverTimestamp()
@@ -65,6 +67,7 @@ export async function replyToMotion(committeeId, motionId, { text, stance = 'neu
     const repliesCol = collection(db, 'committees', committeeId, 'motions', motionId, 'replies');
     await addDoc(repliesCol, {
         authorUid: auth.currentUser.uid,
+        authorDisplayName: auth.currentUser.displayName,
         text,
         stance,
         createdAt: serverTimestamp()

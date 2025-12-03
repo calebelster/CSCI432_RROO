@@ -55,6 +55,7 @@ export default function Profile({ currentUser }) {
 
             setStatus('Saved');
             setTimeout(() => setStatus(''), 1600);
+            setName(name); // Explicitly update local state after successful save
         } catch (err) {
             setStatus('Failed to save');
             console.error(err);
