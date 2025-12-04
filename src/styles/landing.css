@@ -51,7 +51,8 @@ body {
 }
 
 .navbar-right .nav-btn:hover {
-    background: var(--primary-hover-color);
+    /* Keep nav buttons static on hover to avoid disappearing */
+    background: var(--primary-color);
 }
 
 .main-content {
@@ -96,7 +97,8 @@ body {
 }
 
 .main-buttons .main-btn:hover {
-    background: var(--primary-hover-color);
+    /* Keep main buttons static on hover */
+    background: var(--primary-color);
 }
 
 .info-grid {
