@@ -863,14 +863,25 @@ export default function Committee() {
                                                 </div>
                                             )}
                                             {decision.discussionSnapshot &&
-                                                decision.discussionSnapshot.length > 0 && (
-                                                    <div className="decision-discussion">
-                                                        <strong>
-                                                            Discussion ({decision.discussionSnapshot.length}{' '}
-                                                            comments)
-                                                        </strong>
-                                                    </div>
-                                                )}
+                                                    decision.discussionSnapshot &&
+                                                    decision.discussionSnapshot.length > 0 && (
+                                                        <div className="decision-discussion">
+                                                            <strong>
+                                                                Discussion ({decision.discussionSnapshot.length} comments)
+                                                            </strong>
+                                                            <ul className="discussion-list">
+                                                                {decision.discussionSnapshot.map((c, i) => (
+                                                                    <li key={i}>
+                                                                        <div className="discussion-author">
+                                                                            {c.authorDisplayName || c.authorUid || 'Member'}
+                                                                            <span className="discussion-date">{c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}</span>
+                                                                        </div>
+                                                                        <div className="discussion-text">{c.text}</div>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    )}
                                             {decision.recordingUrl && (
                                                 <div className="decision-recording">
                                                     <a
