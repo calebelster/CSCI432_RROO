@@ -4,14 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import '../styles/HomePage.css';
 import { createCommittee, joinCommitteeByCode } from '../firebase/committees';
 import { db } from '../firebase/firebase';
-import {
-    collectionGroup,
-    query,
-    where,
-    onSnapshot,
-    getDoc,
-    doc,
-} from 'firebase/firestore';
+import { collectionGroup, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 
 function HomePage({ currentUser }) {
     const navigate = useNavigate();
@@ -20,16 +13,8 @@ function HomePage({ currentUser }) {
     const [homeData, setHomeData] = useState(() => ({
         profile: { name: 'Profile Name' },
         stats: [
-            {
-                title: 'Your Committees',
-                value: 0,
-                description: "Active committees you're part of",
-            },
-            {
-                title: 'Pending Motions',
-                value: 0,
-                description: 'Motions requiring your attention',
-            },
+            { title: 'Your Committees', value: 0, description: "Active committees you're part of" },
+            { title: 'Active Motions', value: 0, description: "Motions requiring your attention" }
         ],
         committees: [],
         committeeData: {},
@@ -86,6 +71,21 @@ function HomePage({ currentUser }) {
         }
         syncNameFromFirestore();
     }, [currentUser]);
+
+    // Close the "more" menu when clicking outside of it
+    useEffect(() => {
+        if (!openMenuFor) return;
+        const handleDocClick = (e) => {
+            // if click is inside a more-btn or more-menu-dropdown, ignore
+            const btn = e.target.closest && e.target.closest('.more-btn');
+            const dropdown = e.target.closest && e.target.closest('.more-menu-dropdown');
+            if (!btn && !dropdown) {
+                setOpenMenuFor(null);
+            }
+        };
+        document.addEventListener('mousedown', handleDocClick);
+        return () => document.removeEventListener('mousedown', handleDocClick);
+    }, [openMenuFor]);
 
     // Real-time: find committees where the current user has a member doc
     useEffect(() => {
@@ -331,41 +331,53 @@ function HomePage({ currentUser }) {
                     <div className="committee-card-grid">
                         {homeData.committees.map((committee, idx) => (
                             <div className="committee-card" key={committee.id || idx}>
-                                <div className="committee-header">
-                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                        <h3>{committee.name}</h3>
-                                        <span className="member-tag">{committee.role}</span>
-                                    </div>
-                                    <div className="card-more">
-                                        <button
-                                            className="more-btn"
-                                            onClick={() =>
-                                                setOpenMenuFor(
-                                                    openMenuFor === committee.name ? null : committee.name
-                                                )
-                                            }
-                                        >
-                                            ⋯
-                                        </button>
-                                        {openMenuFor === committee.name && (
-                                            <div className="more-menu-dropdown">
+                                <div>
+                                    <div
+                                        className="committee-header"
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            <h3>{committee.name}</h3>
+                                            <span className="member-tag">{committee.role}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                            <div className="committee-motions-count header-count">Active Motions: {homeData.committeeData?.[committee.name]?.motionsCount ?? 0}</div>
+                                            <div className="card-more">
                                                 <button
-                                                    className="more-item"
-                                                    onClick={() => {
-                                                        setConfirmDeleteFor(committee.name);
-                                                        setOpenMenuFor(null);
-                                                    }}
+                                                    className="more-btn"
+                                                    onClick={() =>
+                                                        setOpenMenuFor(
+                                                            openMenuFor === committee.name ? null : committee.name
+                                                        )
+                                                    }
                                                 >
-                                                    Delete
+                                                    ⋯
                                                 </button>
+                                                {openMenuFor === committee.name && (
+                                                    <div className="more-menu-dropdown">
+                                                        <button
+                                                            className="more-item"
+                                                            onClick={() => {
+                                                                setConfirmDeleteFor(committee.name);
+                                                                setOpenMenuFor(null);
+                                                            }}
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
+                                    <p className="committee-description">{committee.description}</p>
                                 </div>
-                                <p className="committee-description">{committee.description}</p>
                                 <div className="committee-footer">
                                     <span className="date">{committee.date}</span>
-                                    <div style={{ display: 'flex', gap: 8 }}>
+                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                         <button
                                             className="enter-button"
                                             onClick={() => enterCommittee(committee)}
