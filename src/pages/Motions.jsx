@@ -90,6 +90,17 @@ export default function Motions() {
                         }
                     }));
 
+                    // Fetch replies subcollections for each motion so persisted comments show up
+                    const repliesByMotion = {};
+                    await Promise.all(raw.map(async (m) => {
+                        try {
+                            const repliesSnap = await getDocs(collection(db, 'committees', cid, 'motions', m.id, 'replies'));
+                            repliesByMotion[m.id] = repliesSnap.docs.map(r => ({ id: r.id, ...(r.data() || {}) }));
+                        } catch (e) {
+                            repliesByMotion[m.id] = m.replies || [];
+                        }
+                    }));
+
                     let docs = raw.map(m => {
                         const displayName = m.creator || (m.creatorUid && profiles[m.creatorUid]?.displayName) || '';
                         return {
@@ -98,7 +109,7 @@ export default function Motions() {
                             description: m.description,
                             creator: displayName || (m.creatorUid || ''),
                             status: m.status,
-                            replies: m.replies,
+                            replies: repliesByMotion[m.id] || m.replies || [],
                             tally: m.tally,
                             threshold: m.threshold, // Ensure threshold is passed through
                             createdAt: m.createdAt || null
@@ -191,7 +202,11 @@ export default function Motions() {
             }
         }
 
-        setMotions((prev) => prev.map((m) => (m.id === motionId ? { ...m, replies: [...(m.replies || []), { user: 'You', text, stance }] } : m)));
+        // Prefer the authenticated user's displayName/email/uid for local reply rendering
+        const currentUserName = auth?.currentUser?.displayName || auth?.currentUser?.email || auth?.currentUser?.uid || 'You';
+        const currentUserUid = auth?.currentUser?.uid || null;
+        const localReply = { user: currentUserName, authorUid: currentUserUid, text, stance, createdAt: new Date() };
+        setMotions((prev) => prev.map((m) => (m.id === motionId ? { ...m, replies: [...(m.replies || []), localReply] } : m)));
         setReplyInputs((prev) => ({ ...prev, [motionId]: '' }));
         setReplyStances((prev) => ({ ...prev, [motionId]: 'pro' }));
     }
@@ -415,12 +430,46 @@ export default function Motions() {
                                         <div className="no-sub">Be the first to share your thoughts on this motion</div>
                                     </div>
                                 ) : (
-                                    motion.replies.map((reply, idx) => (
-                                        <div className="comment-item" key={idx}>
-                                            <div className="comment-meta"><strong>{reply.user || reply.authorUid || 'Member'}</strong> · <span className="comment-stance">{reply.stance || 'neutral'}</span></div>
-                                            <div className="comment-body">{reply.text || reply.message || ''}</div>
-                                        </div>
-                                    ))
+                                    motion.replies.map((reply, idx) => {
+                                        const when = reply.createdAt || reply.created || reply.timestamp || null;
+                                        const whenLabel = (function formatDateTime(value) {
+                                            if (!value) return '';
+                                            try {
+                                                if (value.toDate && typeof value.toDate === 'function') {
+                                                    return value.toDate().toLocaleString();
+                                                }
+                                                const d = new Date(value);
+                                                if (!isNaN(d.getTime())) return d.toLocaleString();
+                                            } catch (e) { }
+                                            return String(value);
+                                        })(when);
+
+                                        const displayName = reply.authorDisplayName || reply.user || reply.authorEmail || reply.authorUid || 'Member';
+                                        const initials = (displayName || 'M').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+                                        const stanceRaw = (reply.stance || reply.position || '').toString().toLowerCase();
+                                        let stanceClass = 'neutral';
+                                        let stanceLabel = 'Neutral';
+                                        if (['pro', 'support', 'supporting'].includes(stanceRaw)) { stanceClass = 'supporting'; stanceLabel = 'Pro'; }
+                                        else if (['con', 'opp', 'opposing', 'against'].includes(stanceRaw)) { stanceClass = 'opposing'; stanceLabel = 'Con'; }
+
+                                        return (
+                                            <div className="comment-item" key={idx}>
+                                                <div className="comment-left">
+                                                    <div className="avatar small">{initials}</div>
+                                                </div>
+                                                <div className="comment-main">
+                                                    <div className="comment-meta">
+                                                        <div className="comment-author-block">
+                                                            <div className="comment-author"><strong>{displayName}</strong></div>
+                                                            <div className={`comment-position badge ${stanceClass}`}>{stanceLabel}</div>
+                                                        </div>
+                                                        <div className="comment-date">{whenLabel}</div>
+                                                    </div>
+                                                    <div className="comment-body">{reply.text || reply.message || ''}</div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>
@@ -492,11 +541,22 @@ export default function Motions() {
                             {(!motion.replies || motion.replies.length === 0) ? (
                                 <div className="no-replies">No replies yet.</div>
                             ) : (
-                                motion.replies.map((reply, idx) => (
-                                    <div className="reply" key={idx}>
-                                        <strong>{reply.user || reply.authorUid} ({reply.stance || 'neutral'}):</strong> {reply.text || reply.message || ''}
-                                    </div>
-                                ))
+                                motion.replies.map((reply, idx) => {
+                                    const stanceRaw = (reply.stance || reply.position || 'neutral').toString().toLowerCase();
+                                    let stanceClass = 'neutral';
+                                    let stanceLabel = 'Neutral';
+                                    if (['pro', 'support', 'supporting'].includes(stanceRaw)) { stanceClass = 'supporting'; stanceLabel = 'Pro'; }
+                                    else if (['con', 'opp', 'opposing', 'against'].includes(stanceRaw)) { stanceClass = 'opposing'; stanceLabel = 'Con'; }
+                                    return (
+                                        <div className="reply" key={idx}>
+                                            <strong>
+                                                {reply.authorDisplayName || reply.user || reply.authorUid}
+                                                <span className={`comment-position badge ${stanceClass}`} style={{ marginLeft: 8, marginRight: 6 }}>{stanceLabel}</span>:
+                                            </strong>
+                                            <span style={{ marginLeft: 8 }}>{reply.text || reply.message || ''}</span>
+                                        </div>
+                                    );
+                                })
                             )}
 
                             <div className="reply-form">
