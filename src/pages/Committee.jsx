@@ -647,112 +647,89 @@ export default function Committee() {
                 {activeTab === 'members' && (
                     <div className="members-section">
                         <div className="members-header">Members</div>
-                        <div className="members-card">
-                            <table className="members-table">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Position</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {(committeeData.members || []).map((member, idx) => {
-                                        const display =
-                                            member.displayName ||
-                                            member.email ||
-                                            (member.uid === auth.currentUser?.uid
-                                                ? auth.currentUser.displayName || auth.currentUser.email || 'You'
-                                                : 'Member');
+                        <div className="members-list">
+                            {(committeeData.members || []).map((member, idx) => {
+                                const display =
+                                    member.displayName ||
+                                    member.email ||
+                                    (member.uid === auth.currentUser?.uid
+                                        ? auth.currentUser.displayName || auth.currentUser.email || 'You'
+                                        : 'Member');
 
-                                        return (
-                                            <tr key={member.uid || idx}>
-                                                <td className="member-name">
-                                                    <div className="member-item">
-                                                        <div className="member-avatar">
-                                                            {member.photoURL ? (
-                                                                <img src={member.photoURL} alt={display} />
-                                                            ) : (
-                                                                <div className="avatar-initials">
-                                                                    {display
-                                                                        .split(' ')
-                                                                        .map(s => s[0])
-                                                                        .slice(0, 2)
-                                                                        .join('')
-                                                                        .toUpperCase()}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div className="member-info">
-                                                            <div
-                                                                className="member-main"
-                                                                style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}
-                                                            >
-                                                                <div className="member-name-text">{display}</div>
-                                                            </div>
-                                                            <div className="member-sub">
-                                                                {member.email && (
-                                                                    <div className="member-email">{member.email}</div>
-                                                                )}
-                                                                {member.joinedAt && (
-                                                                    <div className="member-joined">
-                                                                        Joined {member.joinedAt}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="member-pos">
-                                                    {(
-                                                        // Owner can change anyone's role; chair can change non-owner roles but cannot assign owner
-                                                        isCommitteeOwner || isChair
-                                                    ) ? (
-                                                        <select
-                                                            value={member.role || 'member'}
-                                                            disabled={changingRoleFor === member.uid}
-                                                            onChange={(e) => {
-                                                                const newRole = e.target.value;
-                                                                if (!committeeObj?.id) return;
-
-                                                                // If current user is chair, prevent assigning 'owner'
-                                                                if (isChair && !isCommitteeOwner && newRole === 'owner') {
-                                                                    alert('Only the committee owner can assign ownership.');
-                                                                    return;
-                                                                }
-
-                                                                // Prevent owner from demoting themself directly; they must transfer ownership instead
-                                                                if (member.uid === currentUser?.uid && newRole !== 'owner') {
-                                                                    alert('You cannot demote yourself. Transfer ownership to another member first.');
-                                                                    return;
-                                                                }
-
-                                                                // If role did not change, do nothing
-                                                                if ((member.role || 'member') === newRole) return;
-
-                                                                // Queue the change and show confirmation dialog for owners
-                                                                setRoleChangePending({ member, newRole });
-                                                                setShowRoleConfirm(true);
-                                                            }}
-                                                        >
-                                                            {isCommitteeOwner && <option value="owner">Owner</option>}
-                                                            <option value="chair">Chair</option>
-                                                            <option value="member">Member</option>
-                                                        </select>
+                                return (
+                                    <div key={member.uid || idx} className="member-card">
+                                        <div className="member-card-header">
+                                            <div className="member-item">
+                                                <div className="member-avatar">
+                                                    {member.photoURL ? (
+                                                        <img src={member.photoURL} alt={display} />
                                                     ) : (
-                                                        <div className="role-badge position-badge">
-                                                            {member.role === 'owner'
-                                                                ? 'Owner'
-                                                                : member.role === 'chair'
-                                                                    ? 'Chair'
-                                                                    : member.role}
+                                                        <div className="avatar-initials">
+                                                            {display
+                                                                .split(' ')
+                                                                .map(s => s[0])
+                                                                .slice(0, 2)
+                                                                .join('')
+                                                                .toUpperCase()}
                                                         </div>
                                                     )}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                                </div>
+                                                <div className="member-info">
+                                                    <div className="member-main">
+                                                        <div className="member-name-text">{display}</div>
+                                                        <div className="member-role-badge">
+                                                            {member.role === 'owner'
+                                                                ? '👑 Owner'
+                                                                : member.role === 'chair'
+                                                                    ? '🔨 Chair'
+                                                                    : 'Member'}
+                                                        </div>
+                                                    </div>
+                                                    {member.email && (
+                                                        <div className="member-email">📧 {member.email}</div>
+                                                    )}
+                                                    {member.joinedAt && (
+                                                        <div className="member-joined">
+                                                            Joined {member.joinedAt}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            {(isCommitteeOwner || isChair) && (
+                                                <div className="member-role-selector">
+                                                    <select
+                                                        value={member.role || 'member'}
+                                                        disabled={changingRoleFor === member.uid}
+                                                        onChange={(e) => {
+                                                            const newRole = e.target.value;
+                                                            if (!committeeObj?.id) return;
+
+                                                            if (isChair && !isCommitteeOwner && newRole === 'owner') {
+                                                                alert('Only the committee owner can assign ownership.');
+                                                                return;
+                                                            }
+
+                                                            if (member.uid === currentUser?.uid && newRole !== 'owner') {
+                                                                alert('You cannot demote yourself. Transfer ownership to another member first.');
+                                                                return;
+                                                            }
+
+                                                            if ((member.role || 'member') === newRole) return;
+
+                                                            setRoleChangePending({ member, newRole });
+                                                            setShowRoleConfirm(true);
+                                                        }}
+                                                    >
+                                                        {isCommitteeOwner && <option value="owner">Owner</option>}
+                                                        <option value="chair">Chair</option>
+                                                        <option value="member">Member</option>
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}

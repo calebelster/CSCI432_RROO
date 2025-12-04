@@ -386,7 +386,6 @@ button {
 	color: var(--text);
 }
 
-
 .members-table th {
 	font-weight: 700
 }
@@ -395,35 +394,65 @@ button {
 	border-bottom: 1px solid var(--border-color)
 }
 
-/* Members card: white rounded card with centered columns like the reference image */
-.members-card {
-	background: var(--card);
-	border-radius: 10px;
-	box-shadow: 0 8px 20px rgba(2, 6, 23, 0.06);
-	padding: 6px 12px;
+/* Members list: display members as individual cards */
+.members-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
 	margin-top: 12px;
 }
 
-.members-table {
-	background: transparent;
+.member-card {
+	background: var(--card);
+	border: 1px solid var(--border-color);
+	border-radius: 12px;
+	padding: 16px;
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
-.members-table thead th {
-	text-align: center;
+.member-card-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	width: 100%;
+}
+
+.member-role-selector {
+	display: flex;
+	align-items: center;
+}
+
+.member-role-selector select {
+	padding: 6px 12px;
+	border: 1px solid var(--border-color);
+	border-radius: 8px;
+	background: var(--card);
 	color: var(--text);
-	padding: 18px 24px;
-	font-size: 1.05rem;
+	font-family: var(--font);
+	cursor: pointer;
+	font-size: 0.95rem;
 }
 
-.members-table tbody td {
-	text-align: center;
-	padding: 20px 24px;
-	font-size: 1.03rem;
-	color: var(--text);
+.member-role-badge {
+	display: inline-block;
+	background: #08112b;
+	color: #fff;
+	padding: 4px 8px;
+	border-radius: 999px;
+	font-size: 0.8rem;
+	font-weight: 700;
+	margin-left: 8px;
 }
 
-.members-table tbody tr {
-	background: transparent;
+/* Members card: white rounded card with centered columns like the reference image */
+.members-card {
+	/* deprecated - using members-list with individual member-card items instead */
+	display: none;
 }
 
 .members-header {
@@ -460,22 +489,41 @@ button {
 
 .member-info {
 	text-align: left;
+	flex: 1;
+}
+
+.member-main {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
 }
 
 .member-name-text {
 	font-weight: 700;
-	font-size: 1.03rem;
+	font-size: 1.1rem;
+	color: var(--text);
 }
 
-.member-sub {
-	margin-top: 6px;
-	font-size: 0.92rem;
+.member-email {
+	margin-top: 4px;
+	margin-bottom: 4px;
+	font-size: 0.95rem;
 	color: var(--text);
 	opacity: 0.8;
 }
 
-.member-email {
-	margin-bottom: 4px;
+.member-joined {
+	font-size: 0.9rem;
+	color: var(--text);
+	opacity: 0.7;
+}
+
+.member-sub {
+	margin-top: 4px;
+	font-size: 0.9rem;
+	color: var(--text);
+	opacity: 0.8;
 }
 
 .position-badge {
