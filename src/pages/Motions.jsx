@@ -97,9 +97,11 @@ export default function Motions() {
 
         const motionsCol = collection(db, 'committees', cid, 'motions');
 
-        const unsub = onSnapshot(
-            motionsCol,
-            async snap => {
+        // Track per-motion reply listeners so we can update replies in real-time
+        const replyUnsubs = {};
+
+        const unsub = onSnapshot(motionsCol, snap => {
+            try {
                 const raw = snap.docs.map(d => {
                     const md = d.data();
                     return {
@@ -110,15 +112,12 @@ export default function Motions() {
                         creatorDisplayName: md.creatorDisplayName,
                         creatorUid: md.creatorUid || null,
                         status: md.status || 'active',
-                        replies: md.replies,
+                        replies: md.replies || [],
                         tally: md.tally || { yes: 0, no: 0, abstain: 0 },
                         threshold: md.threshold || md.voteThreshold || 'Simple Majority',
                         createdAt: md.createdAt || md.created || md.createdat || null,
                         kind: md.kind || 'standard',
-                        requiresDiscussion:
-                            md.requiresDiscussion !== undefined
-                                ? !!md.requiresDiscussion
-                                : true,
+                        requiresDiscussion: md.requiresDiscussion !== undefined ? !!md.requiresDiscussion : true,
                         parentMotionId: md.parentMotionId || null,
                         relatedTo: md.relatedTo || null,
                         anonymousVotes: !!md.anonymousVotes,
@@ -126,124 +125,62 @@ export default function Motions() {
                     };
                 });
 
-                const repliesByMotion = {};
-                const votesByMotion = {};
+                // manage reply listeners
+                const currentIds = raw.map(m => m.id);
+                Object.keys(replyUnsubs).forEach(id => {
+                    if (!currentIds.includes(id)) {
+                        try { replyUnsubs[id](); } catch {}
+                        delete replyUnsubs[id];
+                    }
+                });
 
-                try {
-                    await Promise.all(
-                        raw.map(async m => {
-                            try {
-                                const repliesSnap = await getDocs(
-                                    collection(db, 'committees', cid, 'motions', m.id, 'replies')
-                                );
-                                repliesByMotion[m.id] = repliesSnap.docs.map(r => ({
-                                    id: r.id,
-                                    ...r.data(),
-                                }));
-                            } catch {
-                                repliesByMotion[m.id] = m.replies || [];
-                            }
+                // set base motions (replies will be updated by listeners)
+                const baseMotions = raw.map(m => ({
+                    id: m.id,
+                    title: m.title,
+                    description: m.description,
+                    creator: m.creator,
+                    creatorUid: m.creatorUid,
+                    status: m.status,
+                    replies: m.replies || [],
+                    votes: [],
+                    tally: m.tally,
+                    threshold: m.threshold,
+                    createdAt: m.createdAt,
+                    kind: m.kind,
+                    requiresDiscussion: m.requiresDiscussion,
+                    parentMotionId: m.parentMotionId,
+                    relatedTo: m.relatedTo,
+                    anonymousVotes: m.anonymousVotes,
+                    voteThreshold: m.voteThreshold,
+                }));
 
-                            try {
-                                const votesSnap = await getDocs(
-                                    collection(db, 'committees', cid, 'motions', m.id, 'votes')
-                                );
-                                votesByMotion[m.id] = votesSnap.docs.map(v => ({
-                                    id: v.id,
-                                    ...v.data(),
-                                }));
-                            } catch {
-                                votesByMotion[m.id] = [];
-                            }
-                        })
-                    );
+                setMotions(baseMotions);
 
-                    const uidSet = new Set(
-                        raw.map(m => m.creatorUid).filter(Boolean)
-                    );
-                    Object.values(repliesByMotion).forEach(list =>
-                        list.forEach(r => r.authorUid && uidSet.add(r.authorUid))
-                    );
-                    Object.values(votesByMotion).forEach(list =>
-                        list.forEach(v => v.voterUid && uidSet.add(v.voterUid))
-                    );
-                    const uids = Array.from(uidSet);
-
-                    const profiles = {};
-                    await Promise.all(
-                        uids.map(async uid => {
-                            try {
-                                const userDoc = await getDoc(doc(db, 'users', uid));
-                                if (userDoc.exists()) profiles[uid] = userDoc.data();
-                            } catch {
-                                // ignore
-                            }
-                        })
-                    );
-
-                    let docs = raw.map(m => {
-                        const displayName =
-                            m.creatorDisplayName ||
-                            (m.creatorUid && profiles[m.creatorUid]?.displayName) ||
-                            m.creator;
-                        return {
-                            id: m.id,
-                            title: m.title,
-                            description: m.description,
-                            creator: displayName || m.creatorUid || 'Member',
-                            creatorUid: m.creatorUid,
-                            status: m.status,
-                            replies: repliesByMotion[m.id] || m.replies || [],
-                            votes: votesByMotion[m.id] || [],
-                            tally: m.tally,
-                            threshold: m.threshold,
-                            createdAt: m.createdAt,
-                            kind: m.kind,
-                            requiresDiscussion: m.requiresDiscussion,
-                            parentMotionId: m.parentMotionId,
-                            relatedTo: m.relatedTo,
-                            anonymousVotes: m.anonymousVotes,
-                        };
-                    });
-
-                    const params2 = new URLSearchParams(location.search);
-                    const idFilter = params2.get('id');
-                    if (idFilter) docs = docs.filter(m => m.id === idFilter);
-
-                    docs.sort((a, b) => b.id.localeCompare(a.id));
-                    setMotions(docs);
-                } catch (e) {
-                    console.warn('motions listener failed, using raw list', e);
-                    let docs = raw.map(m => ({
-                        id: m.id,
-                        title: m.title,
-                        description: m.description,
-                        creator: m.creator || m.creatorUid || 'Member',
-                        status: m.status,
-                        replies: m.replies || [],
-                        votes: [],
-                        tally: m.tally,
-                        threshold: m.threshold,
-                        createdAt: m.createdAt,
-                        kind: m.kind,
-                        requiresDiscussion: m.requiresDiscussion,
-                        parentMotionId: m.parentMotionId,
-                        relatedTo: m.relatedTo,
-                        anonymousVotes: m.anonymousVotes,
-                    }));
-                    const params2 = new URLSearchParams(location.search);
-                    const idFilter = params2.get('id');
-                    if (idFilter) docs = docs.filter(m => m.id === idFilter);
-                    docs.sort((a, b) => b.id.localeCompare(a.id));
-                    setMotions(docs);
-                }
-            },
-            err => {
-                console.warn('motions listener failed', err);
+                // attach listeners for replies (one per motion)
+                raw.forEach(m => {
+                    if (replyUnsubs[m.id]) return;
+                    try {
+                        const repliesCol = collection(db, 'committees', cid, 'motions', m.id, 'replies');
+                        replyUnsubs[m.id] = onSnapshot(repliesCol, snapR => {
+                            const replies = snapR.docs.map(r => ({ id: r.id, ...r.data() }));
+                            setMotions(prev => prev.map(pm => (pm.id === m.id ? { ...pm, replies } : pm)));
+                        });
+                    } catch (e) {
+                        // ignore
+                    }
+                });
+            } catch (e) {
+                console.warn('motions onSnapshot handler failed', e);
             }
-        );
+        }, err => {
+            console.warn('motions listener failed', err);
+        });
 
-        return () => unsub();
+        return () => {
+            try { unsub(); } catch {}
+            Object.values(replyUnsubs).forEach(u => { try { u(); } catch {} });
+        };
     }, [location.search]);
 
     const isCommitteeOwner = auth.currentUser?.uid === committeeOwnerUid;
