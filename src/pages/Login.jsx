@@ -16,7 +16,7 @@ const LoginPage = () => {
         e && e.preventDefault();
         setError('');
         if (!email || !password) {
-                setError('Please enter both email and password.');
+            setError('Please enter both email and password.');
             return;
         }
 
@@ -70,7 +70,6 @@ const LoginPage = () => {
                             {passwordError || error}
                         </div>
                     )}
-                    <div className="forgot"><a href="#">Forgot password?</a></div>
 
                     <button type="submit" disabled={isSigningIn}>{isSigningIn ? 'Signing in...' : 'Log In'}</button>
 

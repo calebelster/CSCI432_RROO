@@ -12,20 +12,23 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 40px 16px; /* some breathing room on small screens */
+  padding: 40px 16px;
+  /* some breathing room on small screens */
   background: var(--bg);
   font-family: var(--font);
 }
 
 .back-link {
-  position: fixed; /* anchor to viewport */
+  position: fixed;
+  /* anchor to viewport */
   left: 24px;
   top: 24px;
   color: var(--text);
   text-decoration: none;
   font-size: 1rem;
   font-weight: bold;
-  z-index: 10; /* keep above card */
+  z-index: 10;
+  /* keep above card */
 }
 
 .login-box {
@@ -37,7 +40,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  position: relative; /* ensure absolutely positioned back-link anchors to the card */
+  position: relative;
+  /* ensure absolutely positioned back-link anchors to the card */
 }
 
 .login-title {
@@ -86,13 +90,7 @@
   box-shadow: 0 0 0 3px var(--secondary-color);
 }
 
-.forgot {
-  color: var(--text);
-  font-size: .9rem;
-  text-decoration: underline;
-  font-weight: 400;
-  margin: 4px 0 8px;
-}
+/* `.forgot` removed — link disabled in markup */
 
 .login-box button {
   width: 100%;
@@ -105,6 +103,7 @@
   font-size: 16px;
   cursor: pointer;
   font-family: var(--font);
+  margin-top: 12px;
 }
 
 .signup {
