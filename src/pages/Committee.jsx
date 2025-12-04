@@ -620,56 +620,48 @@ export default function Committee() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {(committeeData.members || []).map((member, idx) => {
-                                        const display =
-                                            member.displayName ||
-                                            member.email ||
-                                            (member.uid === auth.currentUser?.uid
-                                                ? auth.currentUser.displayName || auth.currentUser.email || 'You'
-                                                : 'Member');
+                                {(committeeData.members || []).map((member, idx) => {
+                                    const display =
+                                        member.displayName ||
+                                        member.email ||
+                                        (member.uid === auth.currentUser?.uid
+                                            ? auth.currentUser.displayName || auth.currentUser.email || 'You'
+                                            : 'Member');
 
-                                        return (
-                                            <tr key={member.uid || idx}>
-                                                <td className="member-name">
-                                                    <div className="member-item">
-                                                        <div className="member-avatar">
-                                                            {member.photoURL ? (
-                                                                <img
-                                                                    src={member.photoURL}
-                                                                    alt={display}
-                                                                />
-                                                            ) : (
-                                                                <div className="avatar-initials">
-                                                                    {display
-                                                                        .split(' ')
-                                                                        .map(s => s[0])
-                                                                        .slice(0, 2)
-                                                                        .join('')
-                                                                        .toUpperCase()}
+                                    return (
+                                        <tr key={member.uid || idx}>
+                                            <td className="member-name">
+                                                <div className="member-item">
+                                                    <div className="member-avatar">
+                                                        {member.photoURL ? (
+                                                            <img src={member.photoURL} alt={display} />
+                                                        ) : (
+                                                            <div className="avatar-initials">
+                                                                {display
+                                                                    .split(' ')
+                                                                    .map(s => s[0])
+                                                                    .slice(0, 2)
+                                                                    .join('')
+                                                                    .toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="member-info">
+                                                        <div
+                                                            className="member-main"
+                                                            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}
+                                                        >
+                                                            <div className="member-name-text">{display}</div>
+                                                        </div>
+                                                        <div className="member-sub">
+                                                            {member.email && (
+                                                                <div className="member-email">{member.email}</div>
+                                                            )}
+                                                            {member.joinedAt && (
+                                                                <div className="member-joined">
+                                                                    Joined {member.joinedAt}
                                                                 </div>
                                                             )}
-                                                        </div>
-                                                        <div className="member-info">
-                                                            <div
-                                                                className="member-main"
-                                                                style={{
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.6rem',
-                                                                }}
-                                                            >
-                                                                <div className="member-name-text">{display}</div>
-                                                            </div>
-                                                            <div className="member-sub">
-                                                                {member.email && (
-                                                                    <div className="member-email">{member.email}</div>
-                                                                )}
-                                                                {member.joinedAt && (
-                                                                    <div className="member-joined">
-                                                                        Joined {member.joinedAt}
-                                                                    </div>
-                                                                )}
-                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
