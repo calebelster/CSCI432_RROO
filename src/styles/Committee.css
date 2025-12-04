@@ -417,6 +417,69 @@ button {
 	color: var(--text);
 }
 
+/* Members list item layout */
+.member-item {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.member-avatar img,
+.avatar-initials {
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 700;
+	color: #fff;
+	background: #dfeeff;
+	flex-shrink: 0;
+}
+
+.avatar-initials {
+	background: #dfeeff;
+	color: #173b6d;
+}
+
+.member-info {
+	text-align: left;
+}
+
+.member-name-text {
+	font-weight: 700;
+	font-size: 1.03rem;
+}
+
+.member-sub {
+	margin-top: 6px;
+	font-size: 0.92rem;
+	color: var(--text);
+	opacity: 0.8;
+}
+
+.member-email {
+	margin-bottom: 4px;
+}
+
+.position-badge {
+	display: inline-block;
+	margin-top: 6px;
+	padding: 6px 12px;
+	border-radius: 999px;
+	background: #0b2b4a;
+	color: #fff;
+	font-weight: 700;
+	font-size: 0.9rem;
+}
+
+/* Ensure member rows left-align content for the more card-like layout */
+.members-table thead th,
+.members-table tbody td {
+	text-align: left;
+}
+
 /* Modals use the same modal styles as homepage but adapted for card color */
 .modal-overlay {
 	position: fixed;

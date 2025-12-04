@@ -29,9 +29,9 @@ export default function Committee() {
         title: '',
         description: '',
         voteThreshold: 'Simple Majority', // Consolidated vote threshold field
-        requiresDiscussion: false,
+        // all motions require discussion by default; UI no longer exposes this option
+        requiresDiscussion: true,
         secondRequired: true,
-        discussionStyle: 'Offline',
         allowAnonymous: false,
     });
     const [showInvite, setShowInvite] = useState(false);
@@ -72,16 +72,23 @@ export default function Committee() {
                 unsubMembers = onSnapshot(membersCol, (msnap) => {
                     const rawMembers = msnap.docs.map(d => ({ uid: d.id, ...d.data() }));
 
-                    // resolve display names from users collection where possible
+                    // resolve profile info (displayName, email, photoURL, joinedAt) from users collection where possible
                     (async () => {
                         try {
                             const enriched = await Promise.all(rawMembers.map(async (m) => {
-                                if (m.displayName) return m;
+                                if (m.displayName && (m.email || m.photoURL || m.joinedAt)) return m;
                                 try {
                                     const userDoc = await getDoc(doc(db, 'users', m.uid));
                                     if (userDoc.exists()) {
                                         const ud = userDoc.data();
-                                        return { ...m, displayName: ud.displayName || m.displayName || null };
+                                        const joined = ud.createdAt ? (ud.createdAt.toDate ? ud.createdAt.toDate().toLocaleDateString() : ud.createdAt) : null;
+                                        return {
+                                            ...m,
+                                            displayName: ud.displayName || m.displayName || null,
+                                            email: ud.email || m.email || null,
+                                            photoURL: ud.photoURL || m.photoURL || null,
+                                            joinedAt: joined || m.joinedAt || null
+                                        };
                                     }
                                 } catch (e) {
                                     // ignore profile fetch errors per-member
@@ -140,14 +147,13 @@ export default function Committee() {
         setForm((prev) => ({
             ...prev,
             secondRequired: defaults.secondRequired ?? prev.secondRequired,
-            discussionStyle: defaults.discussionStyle ?? prev.discussionStyle,
             allowAnonymous: defaults.allowAnonymous ?? prev.allowAnonymous
         }));
         setShowModal(true);
     }
     function closeModal() {
         setShowModal(false);
-        setForm({ type: 'Main Motion', title: '', description: '', voteThreshold: 'Simple Majority', requiresDiscussion: false, secondRequired: true, discussionStyle: 'Offline', allowAnonymous: false });
+        setForm({ type: 'Main Motion', title: '', description: '', voteThreshold: 'Simple Majority', requiresDiscussion: true, secondRequired: true, allowAnonymous: false });
     }
 
     async function handleCreateMotion(e) {
@@ -158,9 +164,9 @@ export default function Committee() {
             type: form.type,
             threshold: form.voteThreshold, // Using voteThreshold as the primary threshold
             anonymousVotes: !!form.allowAnonymous,
-            requiresDiscussion: !!form.requiresDiscussion,
+            // all motions require discussion in this app
+            requiresDiscussion: true,
             secondRequired: !!form.secondRequired,
-            discussionStyle: form.discussionStyle || 'Offline',
         };
 
         const committeeId = committeeObj?.id || committeeName;
@@ -310,9 +316,7 @@ export default function Committee() {
                                                 )}
                                             </div>
                                             <div className="motion-card-actions-top">
-                                                {motion.status === 'active' && isCommitteeOwner && (
-                                                    <button className="close-voting-btn" onClick={() => handleCloseMotionVoting(motion.id)}>Close Voting</button>
-                                                )}
+                                                {/* Close Voting removed: voting is closed when motion is approved/denied */}
                                                 {(auth.currentUser?.uid === motion.creatorUid || isCommitteeOwner) && motion.status !== 'deleted' && (
                                                     <button className="delete-motion-btn" onClick={() => handleDeleteMotion(motion.id)}>Delete</button>
                                                 )}
@@ -355,8 +359,29 @@ export default function Committee() {
                                 <tbody>
                                     {(committeeData.members || []).map((member, idx) => (
                                         <tr key={member.uid || idx}>
-                                            <td className="member-name">{member.displayName || member.uid}</td>
-                                            <td className="member-pos">{member.role || 'Member'}</td>
+                                            <td className="member-name">
+                                                <div className="member-item">
+                                                    <div className="member-avatar">
+                                                        {member.photoURL ? (
+                                                            <img src={member.photoURL} alt={member.displayName || 'avatar'} />
+                                                        ) : (
+                                                            <div className="avatar-initials">{(member.displayName || (member.uid === auth.currentUser?.uid ? auth.currentUser.displayName : member.uid) || '').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()}</div>
+                                                        )}
+                                                    </div>
+                                                    <div className="member-info">
+                                                        <div className="member-main" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                                            <div className="member-name-text">{member.displayName || (member.uid === auth.currentUser?.uid ? auth.currentUser.displayName : member.uid)}</div>
+                                                        </div>
+                                                        <div className="member-sub">
+                                                            {member.email && <div className="member-email">{member.email}</div>}
+                                                            {member.joinedAt && <div className="member-joined">Joined {member.joinedAt}</div>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="member-pos">
+                                                {member.role && <div className="role-badge position-badge">{member.role === 'owner' ? 'Owner' : member.role}</div>}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -373,16 +398,7 @@ export default function Committee() {
                         <h2>Create New Motion</h2>
                         <p className="modal-sub">Submit a new motion for committee consideration</p>
                         <form className="motion-form" autoComplete="off" onSubmit={handleCreateMotion}>
-                            <div className="form-row">
-                                <label className="form-label">Motion Type</label>
-                                <select name="type" id="motion-type-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="form-select">
-                                    <option value="Main Motion">Main Motion</option>
-                                    <option value="Subsidiary Motion">Subsidiary Motion</option>
-                                    <option value="Privileged Motion">Privileged Motion</option>
-                                    <option value="Incidental Motion">Incidental Motion</option>
-                                    <option value="Procedural Motion">Procedural Motion</option>
-                                </select>
-                            </div>
+                            {/* Motion Type removed — all created motions use the default type */}
                             <div className="form-row">
                                 <label className="form-label">Motion Title *</label>
                                 <input name="title" type="text" required placeholder="e.g., Approve Budget for Q2 2024" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="form-input" />
@@ -402,18 +418,7 @@ export default function Committee() {
                                 </select>
                             </div>
 
-                            <div className="form-row requires-row">
-                                <div className="requires-left">
-                                    <label className="form-label-inline">Requires Discussion</label>
-                                    <span className="form-help">Allow members to discuss this motion before voting</span>
-                                </div>
-                                <div className="requires-right">
-                                    <label className="switch">
-                                        <input type="checkbox" name="requiresDiscussion" checked={form.requiresDiscussion} onChange={(e) => setForm({ ...form, requiresDiscussion: e.target.checked })} />
-                                        <span className="switch-slider" />
-                                    </label>
-                                </div>
-                            </div>
+                            {/* Requires Discussion removed - all motions require discussion by default */}
 
                             <div className="committee-settings">
                                 <div className="settings-title">Motion Settings</div>
@@ -425,14 +430,7 @@ export default function Committee() {
                                             <span className="switch-slider" />
                                         </label>
                                     </div>
-                                    <div className="form-row">
-                                        <label className="form-label">Discussion Style</label>
-                                        <select value={form.discussionStyle} onChange={(e) => setForm({ ...form, discussionStyle: e.target.value })} className="form-select">
-                                            <option value="Offline">Offline</option>
-                                            <option value="Online">Online</option>
-                                            <option value="Hybrid">Hybrid</option>
-                                        </select>
-                                    </div>
+                                    {/* Discussion Style removed - always offline */}
                                     <div className="form-row">
                                         <label className="form-label">Allow Anonymous Voting</label>
                                         <label className="switch">

@@ -10,9 +10,11 @@ export default function Motions() {
     const location = useLocation();
     const navigate = useNavigate();
     const [motions, setMotions] = useState([]);
+    const [actionMessage, setActionMessage] = useState(null); // { text, variant }
     const [replyInputs, setReplyInputs] = useState({});
     const [replyStances, setReplyStances] = useState({});
     const [committeeOwnerUid, setCommitteeOwnerUid] = useState(null); // New state for committee owner UID
+    const [ownerActionDisabled, setOwnerActionDisabled] = useState({}); // map of motionId -> bool to prevent double actions
     const [selectedTab, setSelectedTab] = useState('overview');
 
     // Centralized labels for vote buttons so they can be changed in one place
@@ -186,13 +188,51 @@ export default function Motions() {
         return { yes, no, abstain, total, required, passing };
     }
 
+    // Resolve a committeeId for a motion: prefer URL param 'cid', then sessionStorage 'motion_<id>' entry
+    function resolveCommitteeId(motionId) {
+        try {
+            const params = new URLSearchParams(location.search);
+            const cidFromUrl = params.get('cid');
+            if (cidFromUrl) return cidFromUrl;
+        } catch (e) { }
+        try {
+            const raw = sessionStorage.getItem('motion_' + motionId);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                return parsed.committeeId || parsed.cid || null;
+            }
+        } catch (e) { }
+        return null;
+    }
+
+    // Normalize motion status to one of: active, approved, denied
+    function getStatusInfo(m) {
+        const raw = (m.status || '').toString().toLowerCase();
+        if (raw.includes('den')) return { key: 'denied', label: 'Denied' };
+        if (raw.includes('app') || raw === 'approved' || m.approvedAt) return { key: 'approved', label: 'Approved' };
+        if (raw.includes('close') || raw.includes('completed') || raw.includes('closed')) {
+            // If closed/completed, infer from votes if possible
+            try {
+                const ev = evaluateThreshold(m);
+                return ev.passing ? { key: 'approved', label: 'Approved' } : { key: 'denied', label: 'Denied' };
+            } catch (e) {
+                return { key: 'denied', label: 'Denied' };
+            }
+        }
+        return { key: 'active', label: 'Active' };
+    }
+
     async function handleApproveMotion(motionId) {
         if (!window.confirm('Are you sure you want to approve this motion?')) return;
         try {
-            const params = new URLSearchParams(location.search);
-            const cid = params.get('cid'); // Use cid from URL if available, or from state if set
+            // optimistically disable the owner action for this motion to avoid duplicates
+            setOwnerActionDisabled(prev => ({ ...(prev || {}), [motionId]: true }));
+            const cid = resolveCommitteeId(motionId);
             if (cid) {
                 await approveMotion(cid, motionId);
+                // show success prompt
+                setActionMessage({ text: 'Motion approved', variant: 'success' });
+                setTimeout(() => setActionMessage(null), 3500);
             } else {
                 console.error('Committee ID not found for approving motion.');
                 alert('Committee ID not found for approving motion.');
@@ -200,6 +240,34 @@ export default function Motions() {
         } catch (err) {
             console.error('Failed to approve motion:', err);
             alert('Failed to approve motion: ' + err.message);
+            setActionMessage({ text: 'Failed to approve motion', variant: 'error' });
+            setTimeout(() => setActionMessage(null), 3500);
+            // allow retry on error
+            setOwnerActionDisabled(prev => ({ ...(prev || {}), [motionId]: false }));
+        }
+    }
+
+    async function handleDenyMotion(motionId) {
+        if (!window.confirm('Are you sure you want to deny this motion?')) return;
+        try {
+            // prevent double-deny clicks while request is in flight
+            setOwnerActionDisabled(prev => ({ ...(prev || {}), [motionId]: true }));
+            const cid = resolveCommitteeId(motionId);
+            if (cid) {
+                await denyMotion(cid, motionId);
+                setActionMessage({ text: 'Motion denied', variant: 'error' });
+                setTimeout(() => setActionMessage(null), 3500);
+            } else {
+                console.error('Committee ID not found for denying motion.');
+                alert('Committee ID not found for denying motion.');
+            }
+        } catch (err) {
+            console.error('Failed to deny motion:', err);
+            alert('Failed to deny motion: ' + err.message);
+            setActionMessage({ text: 'Failed to deny motion', variant: 'error' });
+            setTimeout(() => setActionMessage(null), 3500);
+            // allow retry on error
+            setOwnerActionDisabled(prev => ({ ...(prev || {}), [motionId]: false }));
         }
     }
 
@@ -329,6 +397,8 @@ export default function Motions() {
 
     if (isDetailView) {
         const motion = motions[0];
+        const statusInfo = getStatusInfo(motion);
+        const isFinalStatus = statusInfo.key === 'approved' || statusInfo.key === 'denied';
 
         function formatDateField(value) {
             if (!value) return '';
@@ -346,8 +416,7 @@ export default function Motions() {
 
         const authorName = motion.creator || motion.author || motion.createdBy || 'Unknown';
         const createdAt = formatDateField(motion.createdAt || motion.created || motion.created_at);
-        const motionType = motion.type || motion.motionType || 'Main';
-        const requiresDiscussion = (typeof motion.requiresDiscussion !== 'undefined') ? motion.requiresDiscussion : (motion.requires_discussion || true);
+
         const voteThreshold = motion.threshold || motion.voteThreshold || 'Simple Majority';
         return (
             <div className="motions-page motion-detail">
@@ -365,6 +434,12 @@ export default function Motions() {
                         <span className="role-badge">Member</span>
                     </div>
                 </div>
+                {actionMessage && (
+                    <div className={`action-toast ${actionMessage.variant || ''}`} role="status">
+                        <span className="action-toast-text">{actionMessage.text}</span>
+                        <button className="action-toast-close" onClick={() => setActionMessage(null)}>×</button>
+                    </div>
+                )}
 
                 <div className="tabs" role="tablist">
                     <button aria-selected={selectedTab === 'overview'} onClick={() => setSelectedTab('overview')} className={`tab ${selectedTab === 'overview' ? 'active' : ''}`}>Overview</button>
@@ -396,9 +471,7 @@ export default function Motions() {
                         <div className="motion-details-box">
                             <h3>Motion Details</h3>
                             <div className="details-grid">
-                                <div><strong>Type:</strong> {motionType}</div>
                                 <div><strong>Vote Threshold:</strong> {voteThreshold}</div>
-                                <div><strong>Requires Discussion:</strong> <span className="yes">{requiresDiscussion ? 'Yes' : 'No'}</span></div>
                                 <div><strong>Status:</strong> {motion.status}</div>
                             </div>
                         </div>
@@ -451,13 +524,13 @@ export default function Motions() {
                                 value={replyInputs[motion.id] || ''}
                                 onChange={(e) => handleInputChange(motion.id, e.target.value)}
                                 rows={4}
-                                disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}
+                                disabled={isFinalStatus || motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}
                             />
 
                             <div className="discussion-controls">
                                 <div className="position-select">
                                     <label className="small-label">Your Position</label>
-                                    <select value={replyStances[motion.id] || 'neutral'} onChange={(e) => handleStanceChange(motion.id, e.target.value)} className="reply-select" disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>
+                                    <select value={replyStances[motion.id] || 'neutral'} onChange={(e) => handleStanceChange(motion.id, e.target.value)} className="reply-select" disabled={isFinalStatus || motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>
                                         <option value="pro">Supporting</option>
                                         <option value="con">Opposing</option>
                                         <option value="neutral">Neutral</option>
@@ -465,7 +538,7 @@ export default function Motions() {
                                 </div>
 
                                 <div className="post-action">
-                                    <button onClick={() => addReply(motion.id)} className="post-comment-btn" disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>Post Comment</button>
+                                    <button onClick={() => addReply(motion.id)} className="post-comment-btn" disabled={isFinalStatus || motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>Post Comment</button>
                                 </div>
                             </div>
                         </div>
@@ -537,39 +610,31 @@ export default function Motions() {
                                 </div>
                             </div>
 
-                                {/* Owner action button shown only inside the Voting card (top-right) */}
-                                {isCommitteeOwner && (() => {
-                                    const ev = evaluateThreshold(motion);
-                                    const handleAction = async () => {
-                                        if (ev.passing) {
-                                            if (!window.confirm('Are you sure you want to approve this motion?')) return;
-                                            try {
-                                                const params = new URLSearchParams(location.search);
-                                                const cid = params.get('cid');
-                                                if (cid) await handleApproveMotion(motion.id);
-                                                else { console.error('Committee ID not found for approving motion.'); alert('Committee ID not found for approving motion.'); }
-                                            } catch (err) { console.error(err); }
-                                        } else {
-                                            if (!window.confirm('Are you sure you want to deny this motion?')) return;
-                                            try {
-                                                const params = new URLSearchParams(location.search);
-                                                const cid = params.get('cid');
-                                                if (cid) await denyMotion(cid, motion.id);
-                                                else { console.error('Committee ID not found for denying motion.'); alert('Committee ID not found for denying motion.'); }
-                                            } catch (err) { console.error(err); }
-                                        }
-                                    };
-                                    return (
-                                        <button
-                                            className={`action-btn ${ev.passing ? 'approve' : 'deny'}`}
-                                            onClick={handleAction}
-                                            aria-pressed={ev.passing}
-                                            style={{ position: 'absolute' }}
-                                        >
-                                            {ev.passing ? 'Approve Motion' : 'Deny Motion'}
-                                        </button>
-                                    );
-                                })()}
+                            {/* Owner action button shown only inside the Voting card (top-right) */}
+                            {isCommitteeOwner && (() => {
+                                const ev = evaluateThreshold(motion);
+                                const disabledFlag = isFinalStatus || Boolean(ownerActionDisabled && ownerActionDisabled[motion.id]);
+                                const handleAction = async () => {
+                                    if (disabledFlag) return;
+                                    if (ev.passing) {
+                                        await handleApproveMotion(motion.id);
+                                    } else {
+                                        await handleDenyMotion(motion.id);
+                                    }
+                                };
+                                return (
+                                    <button
+                                        className={`action-btn ${ev.passing ? 'approve' : 'deny'}`}
+                                        onClick={handleAction}
+                                        aria-pressed={ev.passing}
+                                        aria-disabled={disabledFlag}
+                                        disabled={disabledFlag}
+                                        style={{ position: 'absolute' }}
+                                    >
+                                        {ev.passing ? 'Approve Motion' : 'Deny Motion'}
+                                    </button>
+                                );
+                            })()}
 
                             <div className="status-stats">
                                 <div className="stat-block">
@@ -614,20 +679,27 @@ export default function Motions() {
                         <div className="cast-vote card">
                             <h4>Cast Your Vote</h4>
                             <p className="sub">Choose your position on this motion</p>
-                            <div className="vote-options">
-                                <div className="vote-option yes-option" onClick={() => vote(null, motion.id, 'yes')} role="button" tabIndex={0} aria-disabled={motion.status === 'closed'}>
-                                    <div className="vote-ico">✓</div>
-                                    <div className="vote-label">Yes</div>
+                            {isFinalStatus ? (
+                                <div className="voting-closed">
+                                    <div className="closed-title">Voting closed</div>
+                                    <div className="closed-sub">This motion has been {statusInfo.label.toLowerCase()} and is no longer accepting votes.</div>
                                 </div>
-                                <div className="vote-option no-option" onClick={() => vote(null, motion.id, 'no')} role="button" tabIndex={0} aria-disabled={motion.status === 'closed'}>
-                                    <div className="vote-ico">✕</div>
-                                    <div className="vote-label">No</div>
+                            ) : (
+                                <div className="vote-options">
+                                    <div className="vote-option yes-option" onClick={() => !isFinalStatus && vote(null, motion.id, 'yes')} role="button" tabIndex={0} aria-disabled={isFinalStatus || motion.status === 'closed'}>
+                                        <div className="vote-ico">✓</div>
+                                        <div className="vote-label">Yes</div>
+                                    </div>
+                                    <div className="vote-option no-option" onClick={() => !isFinalStatus && vote(null, motion.id, 'no')} role="button" tabIndex={0} aria-disabled={isFinalStatus || motion.status === 'closed'}>
+                                        <div className="vote-ico">✕</div>
+                                        <div className="vote-label">No</div>
+                                    </div>
+                                    <div className="vote-option abstain-option" onClick={() => !isFinalStatus && vote(null, motion.id, 'abstain')} role="button" tabIndex={0} aria-disabled={isFinalStatus || motion.status === 'closed'}>
+                                        <div className="vote-ico">—</div>
+                                        <div className="vote-label">Abstain</div>
+                                    </div>
                                 </div>
-                                <div className="vote-option abstain-option" onClick={() => vote(null, motion.id, 'abstain')} role="button" tabIndex={0} aria-disabled={motion.status === 'closed'}>
-                                    <div className="vote-ico">—</div>
-                                    <div className="vote-label">Abstain</div>
-                                </div>
-                            </div>
+                            )}
                         </div>
 
                         <div className="vote-record card">
@@ -659,31 +731,7 @@ export default function Motions() {
                         </div>
                     </div>
                 )}
-                {/* Single action button (Approve or Deny) anchored bottom-left of the detail view */}
-                {isCommitteeOwner && (() => {
-                    const ev = evaluateThreshold(motion);
-                    const handleAction = async () => {
-                        if (ev.passing) {
-                            if (!window.confirm('Are you sure you want to approve this motion?')) return;
-                            try {
-                                const params = new URLSearchParams(location.search);
-                                const cid = params.get('cid');
-                                if (cid) await handleApproveMotion(motion.id);
-                                else { console.error('Committee ID not found for approving motion.'); alert('Committee ID not found for approving motion.'); }
-                            } catch (err) { console.error(err); }
-                        } else {
-                            if (!window.confirm('Are you sure you want to deny this motion?')) return;
-                            try {
-                                const params = new URLSearchParams(location.search);
-                                const cid = params.get('cid');
-                                if (cid) await denyMotion(cid, motion.id);
-                                else { console.error('Committee ID not found for denying motion.'); alert('Committee ID not found for denying motion.'); }
-                            } catch (err) { console.error(err); }
-                        }
-                    };
 
-                    return null;
-                })()}
             </div>
         );
     }
@@ -697,94 +745,111 @@ export default function Motions() {
             </button>
             <h1>Motions</h1>
             <div id="motions-container">
-                {motions.map((motion) => (
-                    <div id={`motion-${motion.id}`} key={motion.id} className={`motion motion-${(motion.status || '').toLowerCase()}`}>
-                        <h2>{motion.title}</h2>
-                        <p><strong>Description:</strong> {motion.description}</p>
-                        <p><strong>Creator:</strong> {motion.creator} <span style={{ marginLeft: 12, color: 'var(--text)', opacity: 0.85 }}>{formatDateField(motion.createdAt)}</span></p>
-                        <div className="motion-meta-row">
-                            <div className="motion-meta">
-                                <span className="creator">{motion.creator}</span>
+                {motions.map((motion) => {
+                    const si = getStatusInfo(motion);
+                    const isFinal = si.key === 'approved' || si.key === 'denied';
+                    return (
+                        <div
+                            id={`motion-${motion.id}`}
+                            key={motion.id}
+                            className={`motion motion-${(motion.status || '').toLowerCase()}`}
+                        >
+                            {/* Top-right status badge on the physical card */}
+                            <div className={`status-badge-top ${si.key}`}>{si.label}</div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <h2 style={{ margin: 0 }}>{motion.title}</h2>
+                                <span className={`status-tag ${si.key}`}>{si.label}</span>
                             </div>
-                            <div className="motion-meta-right">
-                                <span className="date">{formatDateField(motion.createdAt) || '—'}</span>
-                            </div>
-                        </div>
-                        <p><strong>Status:</strong> {motion.status}</p>
-                        <p><strong>Vote Threshold:</strong> {motion.threshold}</p>
 
-                        <div className="motion-actions">
-                            {motion.status === 'active' && isCommitteeOwner && (
-                                <button className="close-voting-btn" onClick={() => handleCloseMotionVoting(motion.id)}>Close Voting</button>
-                            )}
-                            {/* Approve/Deny action will be shown as a single button in the bottom-left of detail view */}
-                        </div>
+                            <p><strong>Description:</strong> {motion.description}</p>
+                            <p>
+                                <strong>Creator:</strong> {motion.creator}
+                                <span style={{ marginLeft: 12, color: 'var(--text)', opacity: 0.85 }}>{formatDateField(motion.createdAt)}</span>
+                            </p>
 
-                        <div className="replies">
-                            <h3>Discussion</h3>
-                            {(!motion.replies || motion.replies.length === 0) ? (
-                                <div className="no-replies">No replies yet.</div>
-                            ) : (
-                                motion.replies.map((reply, idx) => {
-                                    const stanceRaw = (reply.stance || reply.position || 'neutral').toString().toLowerCase();
-                                    let stanceClass = 'neutral';
-                                    let stanceLabel = 'Neutral';
-                                    if (['pro', 'support', 'supporting'].includes(stanceRaw)) { stanceClass = 'supporting'; stanceLabel = 'Pro'; }
-                                    else if (['con', 'opp', 'opposing', 'against'].includes(stanceRaw)) { stanceClass = 'opposing'; stanceLabel = 'Con'; }
-                                    return (
-                                        <div className="reply" key={idx}>
-                                            <strong>
-                                                {reply.authorDisplayName || reply.user || reply.authorUid}
-                                                <span className={`comment-position badge ${stanceClass}`} style={{ marginLeft: 8, marginRight: 6 }}>{stanceLabel}</span>:
-                                            </strong>
-                                            <span style={{ marginLeft: 8 }}>{reply.text || reply.message || ''}</span>
-                                        </div>
-                                    );
-                                })
-                            )}
-
-                            <div className="reply-form">
-                                <input
-                                    type="text"
-                                    placeholder="Add a reply..."
-                                    value={replyInputs[motion.id] || ''}
-                                    onChange={(e) => handleInputChange(motion.id, e.target.value)}
-                                    className="reply-input"
-                                    disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}
-                                />
-                                <select value={replyStances[motion.id] || 'pro'} onChange={(e) => handleStanceChange(motion.id, e.target.value)} className="reply-select" disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>
-                                    <option value="pro">Pro</option>
-                                    <option value="con">Con</option>
-                                    <option value="neutral">Neutral</option>
-                                </select>
-                                <button onClick={() => addReply(motion.id)} className="reply-button" disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>Add Reply</button>
-                            </div>
-                        </div>
-
-                        <div className="voting">
-                            <h4>Vote</h4>
-                            <div className="vote-grid">
-                                <div className="vote-card yes-card">
-                                    <div className="vote-icon">✓</div>
-                                    <div className="vote-count">{VOTE_LABELS.yes}: {motion.tally?.yes || 0}</div>
-                                    <button className="vote-btn vote-yes" onClick={() => vote(null, motion.id, 'yes')} disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{`Vote ${VOTE_LABELS.yes}`}</button>
+                            <div className="motion-meta-row">
+                                <div className="motion-meta">
+                                    <span className="creator">{motion.creator}</span>
                                 </div>
-
-                                <div className="vote-card no-card">
-                                    <div className="vote-icon">✕</div>
-                                    <div className="vote-count">{VOTE_LABELS.no}: {motion.tally?.no || 0}</div>
-                                    <button className="vote-btn vote-no" onClick={() => vote(null, motion.id, 'no')} disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{`Vote ${VOTE_LABELS.no}`}</button>
-                                </div>
-
-                                <div className="vote-card abstain-card">
-                                    <div className="vote-icon">—</div>
-                                    <div className="vote-count">{VOTE_LABELS.abstain}: {motion.tally?.abstain || 0}</div>
-                                    <button className="vote-btn vote-abstain" onClick={() => vote(null, motion.id, 'abstain')} disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{VOTE_LABELS.abstain}</button>
+                                <div className="motion-meta-right">
+                                    <span className="date">{formatDateField(motion.createdAt) || '—'}</span>
                                 </div>
                             </div>
+
+                            <p><strong>Status:</strong> {motion.status}</p>
+                            <p><strong>Vote Threshold:</strong> {motion.threshold}</p>
+
+                            <div className="motion-actions">
+                                {/* Close Voting removed — votes are finalized when motion is approved/denied */}
+                            </div>
+
+                            <div className="replies">
+                                <h3>Discussion</h3>
+                                {(!motion.replies || motion.replies.length === 0) ? (
+                                    <div className="no-replies">No replies yet.</div>
+                                ) : (
+                                    motion.replies.map((reply, idx) => {
+                                        const stanceRaw = (reply.stance || reply.position || 'neutral').toString().toLowerCase();
+                                        let stanceClass = 'neutral';
+                                        let stanceLabel = 'Neutral';
+                                        if (['pro', 'support', 'supporting'].includes(stanceRaw)) { stanceClass = 'supporting'; stanceLabel = 'Pro'; }
+                                        else if (['con', 'opp', 'opposing', 'against'].includes(stanceRaw)) { stanceClass = 'opposing'; stanceLabel = 'Con'; }
+                                        return (
+                                            <div className="reply" key={idx}>
+                                                <strong>
+                                                    {reply.authorDisplayName || reply.user || reply.authorUid}
+                                                    <span className={`comment-position badge ${stanceClass}`} style={{ marginLeft: 8, marginRight: 6 }}>{stanceLabel}</span>:
+                                                </strong>
+                                                <span style={{ marginLeft: 8 }}>{reply.text || reply.message || ''}</span>
+                                            </div>
+                                        );
+                                    })
+                                )}
+
+                                <div className="reply-form">
+                                    <input
+                                        type="text"
+                                        placeholder="Add a reply..."
+                                        value={replyInputs[motion.id] || ''}
+                                        onChange={(e) => handleInputChange(motion.id, e.target.value)}
+                                        className="reply-input"
+                                        disabled={isFinal || motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}
+                                    />
+                                    <select value={replyStances[motion.id] || 'pro'} onChange={(e) => handleStanceChange(motion.id, e.target.value)} className="reply-select" disabled={isFinal || motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>
+                                        <option value="pro">Pro</option>
+                                        <option value="con">Con</option>
+                                        <option value="neutral">Neutral</option>
+                                    </select>
+                                    <button onClick={() => addReply(motion.id)} className="reply-button" disabled={isFinal || motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>Add Reply</button>
+                                </div>
+                            </div>
+
+                            <div className="voting">
+                                <h4>Vote</h4>
+                                <div className="vote-grid">
+                                    <div className="vote-card yes-card">
+                                        <div className="vote-icon">✓</div>
+                                        <div className="vote-count">{VOTE_LABELS.yes}: {motion.tally?.yes || 0}</div>
+                                        <button className="vote-btn vote-yes" onClick={() => !isFinal && vote(null, motion.id, 'yes')} disabled={isFinal || motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{`Vote ${VOTE_LABELS.yes}`}</button>
+                                    </div>
+
+                                    <div className="vote-card no-card">
+                                        <div className="vote-icon">✕</div>
+                                        <div className="vote-count">{VOTE_LABELS.no}: {motion.tally?.no || 0}</div>
+                                        <button className="vote-btn vote-no" onClick={() => !isFinal && vote(null, motion.id, 'no')} disabled={isFinal || motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{`Vote ${VOTE_LABELS.no}`}</button>
+                                    </div>
+
+                                    <div className="vote-card abstain-card">
+                                        <div className="vote-icon">—</div>
+                                        <div className="vote-count">{VOTE_LABELS.abstain}: {motion.tally?.abstain || 0}</div>
+                                        <button className="vote-btn vote-abstain" onClick={() => !isFinal && vote(null, motion.id, 'abstain')} disabled={isFinal || motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{VOTE_LABELS.abstain}</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );

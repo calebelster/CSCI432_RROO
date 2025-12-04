@@ -280,7 +280,9 @@ h1 {
 }
 
 /* Anchor the approve/deny action button to the bottom-left of the detail view */
-.voting-status.card { position: relative; }
+.voting-status.card {
+    position: relative;
+}
 
 .voting-status.card .action-btn {
     position: absolute;
@@ -291,13 +293,15 @@ h1 {
     color: #111;
     padding: 6px 12px;
     border-radius: 6px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
     font-family: 'KoPub Batang', 'Times New Roman', Times, serif;
     font-weight: 400;
     cursor: pointer;
 }
 
-.voting-status.card .action-btn:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+.voting-status.card .action-btn:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
 
 .action-btn:disabled,
 .action-btn.disabled {
@@ -352,6 +356,54 @@ h1 {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
     width: fit-content;
     box-sizing: border-box;
+}
+
+/* Small action toast shown when a motion is approved/denied */
+.action-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 11000;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(2, 6, 23, 0.16);
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    min-width: 180px;
+}
+
+.action-toast.success {
+    background: linear-gradient(90deg, rgba(245, 255, 244, 1) 0%, rgba(238, 255, 243, 1) 100%);
+    border-color: rgba(16, 185, 129, 0.12);
+}
+
+.action-toast.error {
+    background: linear-gradient(90deg, rgba(255, 244, 244, 1) 0%, rgba(255, 241, 241, 1) 100%);
+    border-color: rgba(239, 68, 68, 0.12);
+}
+
+.action-toast-text {
+    flex: 1;
+    font-weight: 600;
+}
+
+.action-toast-close {
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    line-height: 1;
+    padding: 4px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: inherit;
+}
+
+.action-toast-close:hover {
+    background: rgba(15, 23, 42, 0.04);
 }
 
 /* keep `.tabs` as an alias for components that still use that class name */
@@ -912,6 +964,22 @@ h1 {
 }
 
 .status-progress {
+
+    /* Top-right badge placed on the card itself (same variants) */
+    .status-badge-top {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 5;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 12px;
+        color: #0f172a;
+        background: rgba(15, 23, 42, 0.04);
+        border: 1px solid rgba(15, 23, 42, 0.04);
+    }
+
     margin-top: 12px;
 }
 
@@ -1098,4 +1166,53 @@ h1 {
     .vote-options {
         flex-direction: column;
     }
+}
+
+/* Status tag shown next to motion title in list view */
+.status-tag {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 12px;
+    color: #0f172a;
+    background: rgba(15, 23, 42, 0.04);
+    border: 1px solid rgba(15, 23, 42, 0.04);
+    text-transform: none;
+}
+
+.status-tag.active {
+    background: rgba(37, 99, 235, 0.08);
+    border-color: rgba(37, 99, 235, 0.12);
+    color: #1e3a8a;
+}
+
+.status-tag.approved {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.12);
+    color: #065f46;
+}
+
+.status-tag.denied {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.12);
+    color: #7f1d1d;
+}
+
+/* Voting closed state inside Cast Your Vote card */
+.voting-closed {
+    padding: 28px 12px;
+    text-align: center;
+    color: #374151;
+}
+
+.voting-closed .closed-title {
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 6px;
+}
+
+.voting-closed .closed-sub {
+    color: #6b7280;
+    font-size: 13px;
 }
