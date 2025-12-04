@@ -12,6 +12,10 @@ service cloud.firestore {
         : "";
     }
 
+    function isOwner(committeeId, uid) {
+      return memberRole(committeeId, uid) == 'owner';
+    }
+
     function isMember(committeeId, uid) {
       return exists(/databases/$(database)/documents/committees/$(committeeId)/members/$(uid));
     }
@@ -31,8 +35,8 @@ service cloud.firestore {
       allow get, list: if isSignedIn()
         && isMember(committeeId, request.auth.uid);
 
-      // Update/delete: only owner or chair, and only on safe fields
-      allow update, delete: if isSignedIn()
+      // Update: owner or chair may update allowed committee fields
+      allow update: if isSignedIn()
         && (memberRole(committeeId, request.auth.uid) in ['owner', 'chair'])
         && request.resource.data.diff(resource.data)
              .affectedKeys()
@@ -43,17 +47,39 @@ service cloud.firestore {
                'inviteCode'
              ]);
 
+      // Delete: only owner may delete a committee
+      allow delete: if isSignedIn() && isOwner(committeeId, request.auth.uid);
+
       match /members/{memberId} {
         // Members list readable by members
         allow read: if isSignedIn()
           && isMember(committeeId, request.auth.uid);
 
-        // Add/change membership by owner or chair; user can remove themself
-        allow create, update, delete: if isSignedIn()
-          && (
-            memberRole(committeeId, request.auth.uid) in ['owner', 'chair']
-            || request.auth.uid == memberId
-          );
+        // Create membership:
+        // - a user may create their own member doc (self-join) but only as 'member'
+        // - the owner may create any membership and assign 'chair' or 'member'
+        allow create: if isSignedIn() && (
+          (request.auth.uid == memberId
+            && request.resource.data.uid == memberId
+            && (request.resource.data.role == 'member' || !(request.resource.data.keys().hasAny(['role'])))
+          )
+          || isOwner(committeeId, request.auth.uid)
+        );
+
+        // Update membership:
+        // - owner may update any member's role except assigning 'owner'
+        // - a member may update their own profile but must not change their role
+        allow update: if isSignedIn() && (
+          (isOwner(committeeId, request.auth.uid)
+            && !(request.resource.data.role == 'owner')
+          )
+          || (request.auth.uid == memberId && request.resource.data.role == resource.data.role)
+        );
+
+        // Delete membership: member may remove themself, owner may remove any member
+        allow delete: if isSignedIn() && (
+          request.auth.uid == memberId || isOwner(committeeId, request.auth.uid)
+        );
       }
 
       match /motions/{motionId} {

@@ -41,8 +41,28 @@ export async function addMemberToCommittee(committeeId, userUid, role = 'member'
 
 /* Change a user's role inside a committee */
 export async function setMemberRole(committeeId, userUid, role) {
+    if (!auth.currentUser) throw new Error('Not signed in');
+    const committeeRef = doc(db, 'committees', committeeId);
+    const committeeSnap = await getDoc(committeeRef);
+    if (!committeeSnap.exists()) throw new Error('Committee not found');
+    const committeeData = committeeSnap.data();
+    const ownerUid = committeeData?.ownerUid;
+    if (auth.currentUser.uid !== ownerUid) {
+        throw new Error('Not authorized to change member roles');
+    }
+    // Prevent assigning owner via this helper
+    if ((role || '').toString().toLowerCase() === 'owner') {
+        throw new Error('Cannot assign owner role');
+    }
     const memberRef = doc(db, 'committees', committeeId, 'members', userUid);
     await updateDoc(memberRef, { role });
+}
+
+export async function getMemberRole(committeeId, userUid) {
+    const memberRef = doc(db, 'committees', committeeId, 'members', userUid);
+    const snap = await getDoc(memberRef);
+    if (!snap.exists()) return null;
+    return snap.data()?.role || null;
 }
 
 /* Create a motion in a committee */
@@ -180,8 +200,13 @@ export async function deleteMotion(committeeId, motionId) {
     const committeeData = committeeSnap.data();
     const ownerUid = committeeData.ownerUid;
 
-    if (auth.currentUser.uid !== creatorUid && auth.currentUser.uid !== ownerUid) {
-        throw new Error('Not authorized to delete this motion');
+    if (auth.currentUser.uid !== creatorUid) {
+        // allow owner or chair to delete
+        const memberSnap = await getDoc(doc(db, 'committees', committeeId, 'members', auth.currentUser.uid));
+        const role = memberSnap.exists() ? memberSnap.data()?.role : null;
+        if (auth.currentUser.uid !== ownerUid && role !== 'chair') {
+            throw new Error('Not authorized to delete this motion');
+        }
     }
 
     await updateDoc(motionRef, {
@@ -200,8 +225,13 @@ export async function closeMotionVoting(committeeId, motionId) {
     const committeeData = committeeSnap.data();
     const ownerUid = committeeData.ownerUid;
 
+    // allow owner or chair to close voting
     if (auth.currentUser.uid !== ownerUid) {
-        throw new Error('Not authorized to close voting for this motion');
+        const memberSnap = await getDoc(doc(db, 'committees', committeeId, 'members', auth.currentUser.uid));
+        const role = memberSnap.exists() ? memberSnap.data()?.role : null;
+        if (role !== 'chair') {
+            throw new Error('Not authorized to close voting for this motion');
+        }
     }
 
     const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
@@ -221,8 +251,13 @@ export async function approveMotion(committeeId, motionId) {
     const committeeData = committeeSnap.data();
     const ownerUid = committeeData.ownerUid;
 
+    // allow owner or chair to approve
     if (auth.currentUser.uid !== ownerUid) {
-        throw new Error('Not authorized to approve this motion');
+        const memberSnap = await getDoc(doc(db, 'committees', committeeId, 'members', auth.currentUser.uid));
+        const role = memberSnap.exists() ? memberSnap.data()?.role : null;
+        if (role !== 'chair') {
+            throw new Error('Not authorized to approve this motion');
+        }
     }
 
     const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
@@ -242,8 +277,13 @@ export async function denyMotion(committeeId, motionId) {
     const committeeData = committeeSnap.data();
     const ownerUid = committeeData.ownerUid;
 
+    // allow owner or chair to deny
     if (auth.currentUser.uid !== ownerUid) {
-        throw new Error('Not authorized to deny this motion');
+        const memberSnap = await getDoc(doc(db, 'committees', committeeId, 'members', auth.currentUser.uid));
+        const role = memberSnap.exists() ? memberSnap.data()?.role : null;
+        if (role !== 'chair') {
+            throw new Error('Not authorized to deny this motion');
+        }
     }
 
     const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
@@ -337,4 +377,61 @@ export async function joinCommitteeByCode(rawCode) {
     );
 
     return { committeeId, committeeName: data.name || '' };
+}
+
+/* Delete a committee and its known subcollections (owner only) */
+export async function deleteCommittee(committeeId) {
+    if (!auth.currentUser) throw new Error('Not signed in');
+    const committeeRef = doc(db, 'committees', committeeId);
+    const committeeSnap = await getDoc(committeeRef);
+    if (!committeeSnap.exists()) throw new Error('Committee not found');
+    const committeeData = committeeSnap.data();
+    const ownerUid = committeeData?.ownerUid;
+    if (auth.currentUser.uid !== ownerUid) throw new Error('Not authorized to delete this committee');
+
+    // Delete members
+    try {
+        const membersCol = collection(db, 'committees', committeeId, 'members');
+        const membersSnap = await getDocs(membersCol);
+        for (const m of membersSnap.docs) {
+            await deleteDoc(m.ref);
+        }
+    } catch (e) {
+        // non-fatal: continue
+    }
+
+    // Delete motions and nested votes/replies
+    try {
+        const motionsCol = collection(db, 'committees', committeeId, 'motions');
+        const motionsSnap = await getDocs(motionsCol);
+        for (const motionDoc of motionsSnap.docs) {
+            // delete votes
+            try {
+                const votesCol = collection(db, 'committees', committeeId, 'motions', motionDoc.id, 'votes');
+                const votesSnap = await getDocs(votesCol);
+                for (const v of votesSnap.docs) await deleteDoc(v.ref);
+            } catch (e) { }
+            // delete replies
+            try {
+                const repliesCol = collection(db, 'committees', committeeId, 'motions', motionDoc.id, 'replies');
+                const repliesSnap = await getDocs(repliesCol);
+                for (const r of repliesSnap.docs) await deleteDoc(r.ref);
+            } catch (e) { }
+            // delete motion itself
+            try { await deleteDoc(motionDoc.ref); } catch (e) { }
+        }
+    } catch (e) {
+        // non-fatal
+    }
+
+    // Delete decisions
+    try {
+        const decisionsCol = collection(db, 'committees', committeeId, 'decisions');
+        const decisionsSnap = await getDocs(decisionsCol);
+        for (const d of decisionsSnap.docs) await deleteDoc(d.ref);
+    } catch (e) { }
+
+    // Finally delete committee doc
+    await deleteDoc(committeeRef);
+    return true;
 }

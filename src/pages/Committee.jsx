@@ -7,7 +7,9 @@ import {
     deleteMotion,
     approveMotion,
     closeMotionVoting,
+    deleteCommittee,
     generateUniqueInviteCode,
+    setMemberRole,
 } from '../firebase/committees';
 import { db, auth } from '../firebase/firebase';
 import {
@@ -361,7 +363,17 @@ export default function Committee() {
     }
 
     function performDelete() {
-        navigate('/home');
+        // Delete the committee server-side (owner-only) then return home
+        (async () => {
+            try {
+                if (committeeObj?.id) await deleteCommittee(committeeObj.id);
+            } catch (err) {
+                console.error('Failed to delete committee:', err);
+                alert('Failed to delete committee: ' + (err?.message || err));
+            } finally {
+                navigate('/home');
+            }
+        })();
     }
 
     const isCommitteeOwner =
@@ -414,15 +426,17 @@ export default function Committee() {
                         </button>
                         {showMenu && (
                             <div className="more-menu-dropdown">
-                                <button
-                                    className="more-item"
-                                    onClick={() => {
-                                        setConfirmDelete(true);
-                                        setShowMenu(false);
-                                    }}
-                                >
-                                    Delete Committee
-                                </button>
+                                {isCommitteeOwner && (
+                                    <button
+                                        className="more-item"
+                                        onClick={() => {
+                                            setConfirmDelete(true);
+                                            setShowMenu(false);
+                                        }}
+                                    >
+                                        Delete Committee
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -622,9 +636,32 @@ export default function Committee() {
                                             </div>
                                         </td>
                                         <td className="member-pos">
-                                            <div className="role-badge position-badge">
-                                                {member.role === 'owner' ? 'Owner' : member.role}
-                                            </div>
+                                            {isCommitteeOwner ? (
+                                                // owner may change member roles (but not reassign owner)
+                                                member.role === 'owner' ? (
+                                                    <div className="role-badge position-badge">Owner</div>
+                                                ) : (
+                                                    <select
+                                                        value={member.role || 'member'}
+                                                        onChange={async (e) => {
+                                                            const newRole = e.target.value;
+                                                            try {
+                                                                await setMemberRole(committeeObj.id, member.uid, newRole);
+                                                            } catch (err) {
+                                                                console.error('Failed to set member role', err);
+                                                                alert('Failed to change role: ' + (err?.message || err));
+                                                            }
+                                                        }}
+                                                    >
+                                                        <option value="member">Member</option>
+                                                        <option value="chair">Chair</option>
+                                                    </select>
+                                                )
+                                            ) : (
+                                                <div className="role-badge position-badge">
+                                                    {member.role === 'owner' ? 'Owner' : member.role}
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

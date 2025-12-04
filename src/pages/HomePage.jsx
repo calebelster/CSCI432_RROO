@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/HomePage.css';
-import { createCommittee, joinCommitteeByCode } from '../firebase/committees';
+import { createCommittee, joinCommitteeByCode, deleteCommittee } from '../firebase/committees';
 import { db } from '../firebase/firebase';
 import {
     collectionGroup,
@@ -229,11 +229,24 @@ function HomePage({ currentUser }) {
         navigate(`/committee?name=${committeeName}`);
     }
 
-    function handleDeleteCommittee(committee) {
+    async function handleDeleteCommittee(committee) {
         const ok = window.confirm(
             `Delete committee "${committee.name}"? This will remove all local data for this committee.`
         );
         if (!ok) return;
+
+        // If this committee exists in Firestore, attempt server-side deletion (owner-only).
+        if (committee.id) {
+            try {
+                await deleteCommittee(committee.id);
+            } catch (err) {
+                console.error('Failed to delete committee on server:', err);
+                alert('Failed to delete committee: ' + (err?.message || err));
+                return; // don't remove from UI if server delete failed
+            }
+        }
+
+        // Remove from local UI state regardless (if server delete succeeded or it was local-only)
         setHomeData(prev => {
             const committees = (prev.committees || []).filter(
                 c => c.name !== committee.name
@@ -347,19 +360,21 @@ function HomePage({ currentUser }) {
                                         >
                                             ⋯
                                         </button>
-                                        {openMenuFor === committee.name && (
-                                            <div className="more-menu-dropdown">
-                                                <button
-                                                    className="more-item"
-                                                    onClick={() => {
-                                                        setConfirmDeleteFor(committee.name);
-                                                        setOpenMenuFor(null);
-                                                    }}
-                                                >
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        )}
+                                            {openMenuFor === committee.name && (
+                                                <div className="more-menu-dropdown">
+                                                    {((committee.role || '').toString().toLowerCase() === 'owner') && (
+                                                        <button
+                                                            className="more-item"
+                                                            onClick={() => {
+                                                                setConfirmDeleteFor(committee.name);
+                                                                setOpenMenuFor(null);
+                                                            }}
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
                                     </div>
                                 </div>
                                 <p className="committee-description">{committee.description}</p>
