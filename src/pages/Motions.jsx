@@ -66,6 +66,7 @@ export default function Motions() {
                     description: md.description || '',
                     // keep both creator (possibly name) and creatorUid for enrichment
                     creator: md.creator || '',
+                    creatorDisplayName: md.creatorDisplayName || '',
                     creatorUid: md.creatorUid || null,
                     status: md.status || 'active',
                     replies: md.replies || [],
@@ -102,7 +103,11 @@ export default function Motions() {
                     }));
 
                     let docs = raw.map(m => {
-                        const displayName = m.creator || (m.creatorUid && profiles[m.creatorUid]?.displayName) || '';
+                        // Prefer an explicit creatorDisplayName written at creation,
+                        // then try to resolve via creatorUid -> users profile,
+                        // finally fall back to any stored `creator` value (which
+                        // in older data may contain a uid).
+                        const displayName = m.creatorDisplayName || (m.creatorUid && profiles[m.creatorUid]?.displayName) || m.creator || '';
                         return {
                             id: m.id,
                             title: m.title,
@@ -360,29 +365,32 @@ export default function Motions() {
                 {selectedTab === 'discussion' && (
                     <div className="discussion-wrapper">
                         <div className="discussion-overview card">
-                            <h4><span style={{ marginRight: 8 }}>💬</span>Discussion Overview</h4>
-                            <p className="sub">Member comments and positions on this motion</p>
+                            <div className="overview-header">
+                                <span className="overview-icon">💬</span>
+                                <h4>Discussion Overview</h4>
+                            </div>
+                            <p className="overview-sub">Member comments and positions on this motion</p>
                             <div className="discussion-stats">
                                 {(() => {
                                     const counts = { supporting: 0, opposing: 0, neutral: 0 };
                                     (motion.replies || []).forEach(r => {
-                                        const s = (r.stance || '').toLowerCase();
-                                        if (s === 'pro' || s === 'support') counts.supporting++;
-                                        else if (s === 'con' || s === 'opp' || s === 'opposing') counts.opposing++;
+                                        const s = (r.stance || r.position || '').toString().toLowerCase();
+                                        if (['pro', 'support', 'supporting'].includes(s)) counts.supporting++;
+                                        else if (['con', 'opp', 'opposing', 'against'].includes(s)) counts.opposing++;
                                         else counts.neutral++;
                                     });
                                     return (
                                         <>
-                                            <div className="stat">
-                                                <div className="stat-count supporting">{counts.supporting}</div>
+                                            <div className="discussion-stat supporting">
+                                                <div className="stat-count">{counts.supporting}</div>
                                                 <div className="stat-label">Supporting</div>
                                             </div>
-                                            <div className="stat">
-                                                <div className="stat-count opposing">{counts.opposing}</div>
+                                            <div className="discussion-stat opposing">
+                                                <div className="stat-count">{counts.opposing}</div>
                                                 <div className="stat-label">Opposing</div>
                                             </div>
-                                            <div className="stat">
-                                                <div className="stat-count neutral">{counts.neutral}</div>
+                                            <div className="discussion-stat neutral">
+                                                <div className="stat-count">{counts.neutral}</div>
                                                 <div className="stat-label">Neutral</div>
                                             </div>
                                         </>

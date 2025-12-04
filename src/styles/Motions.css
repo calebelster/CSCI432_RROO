@@ -494,10 +494,9 @@ h1 {
 
 .discussion-overview.card {
     display: flex;
+    flex-direction: column;
     gap: 12px;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px;
+    padding: 18px 20px;
 }
 
 /* Make discussion cards fill most of the page width with side margins and softer rounding */
@@ -525,21 +524,54 @@ h1 {
 
 .discussion-stats {
     display: flex;
-    gap: 24px;
+    gap: 48px;
     align-items: center;
+    justify-content: center;
+    margin-top: 6px;
+}
+
+.overview-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.overview-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: transparent;
+    font-size: 16px;
+}
+
+.overview-sub {
+    text-align: left;
+    /* line up under the overview icon by matching the card left padding */
+    margin-left: 18px;
+    color: #6b7280;
+}
+
+@media (max-width: 900px) {
+    .overview-sub {
+        margin-left: 0;
+        text-align: left;
+    }
 }
 
 .discussion-stat {
     background: transparent;
     padding: 6px 8px;
-    min-width: 110px;
+    min-width: 120px;
     text-align: center;
 }
 
 .discussion-stat .stat-count {
-    font-size: 20px;
+    font-size: 28px;
     font-weight: 800;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
 .discussion-stat .stat-label {
@@ -646,6 +678,35 @@ h1 {
     padding-right: 6px;
     /* avoid text under scrollbar */
     scrollbar-gutter: stable;
+}
+
+/* Empty comments placeholder: center icon + title + subtitle vertically and horizontally */
+.discussion-comments.card .no-comments {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 220px;
+    /* large center area similar to screenshot */
+    gap: 8px;
+    color: #6b7280;
+}
+
+.discussion-comments.card .no-comments .no-icon {
+    font-size: 42px;
+    opacity: 0.9;
+}
+
+.discussion-comments.card .no-comments .no-title {
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--text, #111);
+}
+
+.discussion-comments.card .no-comments .no-sub {
+    font-size: 13px;
+    color: #6b7280;
 }
 
 /* Slightly smaller cap on narrow screens to fit viewport */
