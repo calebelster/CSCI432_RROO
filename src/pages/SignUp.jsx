@@ -1,10 +1,13 @@
+// File: src/SignUp.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/SignUp.css';
-import { doCreateUserWithEmailAndPassword, doSendEmailVerification } from '../firebase/auth';
-import { db } from '../firebase/firebase';
+import {
+    doCreateUserWithEmailAndPassword,
+    doSendEmailVerification,
+} from '../firebase/auth';
+import { db, auth } from '../firebase/firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import { auth } from '../firebase/firebase';
 import { updateProfile } from 'firebase/auth';
 
 const SignUpPage = () => {
@@ -21,8 +24,8 @@ const SignUpPage = () => {
     const [triedSubmit, setTriedSubmit] = useState(false);
 
     const handleCreateAccount = async (e) => {
-        e && e.preventDefault();
-        // mark that the user attempted to submit so we can show submit-time hints
+        e.preventDefault();
+
         setTriedSubmit(true);
         setError('');
         setErrorCode('');
@@ -33,14 +36,12 @@ const SignUpPage = () => {
             return;
         }
 
-        // Priority: password length first
         if (password.length < 6) {
             setError('Password should be at least 6 characters.');
             setErrorCode('auth/weak-password');
             return;
         }
 
-        // Then check for mismatch
         if (password !== confirmPassword) {
             setError("Those passwords didn't match. Try again.");
             setErrorCode('mismatch');
@@ -48,25 +49,47 @@ const SignUpPage = () => {
         }
 
         if (isRegistering) return;
+
         setIsRegistering(true);
         try {
-            const userCredential = await doCreateUserWithEmailAndPassword(email, password);
+            const userCredential = await doCreateUserWithEmailAndPassword(
+                email,
+                password
+            );
             const user = userCredential.user;
-            // set display name
+
+            // Set Auth displayName
             try {
                 await updateProfile(user, { displayName: fullName });
             } catch (e) {
-                // non-fatal
                 console.warn('updateProfile failed', e);
             }
-            // optional: send email verification if helper exists
-            try { await doSendEmailVerification(); } catch (e) { /* ignore */ }
+
+            // Mirror basic profile into Firestore users/{uid}
+            try {
+                await setDoc(
+                    doc(db, 'users', user.uid),
+                    {
+                        displayName: fullName,
+                        email,
+                        createdAt: new Date(),
+                    },
+                    { merge: true }
+                );
+            } catch (e) {
+                console.warn('Failed to mirror user profile to Firestore', e);
+            }
+
+            // Optional: send email verification
+            try {
+                await doSendEmailVerification();
+            } catch (e) {
+                // non-fatal
+            }
 
             setIsModalVisible(true);
         } catch (err) {
             console.error(err);
-            // store both the display message and the firebase error code so we can
-            // show field-specific hints (e.g. weak-password) in the form
             setError(err.message || 'Failed to create account');
             setErrorCode(err.code || '');
         } finally {
@@ -77,7 +100,7 @@ const SignUpPage = () => {
     const handleCloseModal = () => {
         setIsModalVisible(false);
         navigate('/login');
-    }
+    };
 
     return (
         <div className="signup-page">
@@ -85,38 +108,75 @@ const SignUpPage = () => {
                 <h1>Create Account</h1>
                 <p>Join to start managing your meets and committees</p>
 
-                {error && !['auth/weak-password', 'mismatch'].includes(errorCode) && <div className="error">{error}</div>}
+                {error && !['auth/weak-password', 'mismatch'].includes(errorCode) && (
+                    <div className="error">{error}</div>
+                )}
 
                 <form className="signup-form" onSubmit={handleCreateAccount}>
                     <div className="form-group">
                         <label htmlFor="fullName">Full Name</label>
-                        <input type="text" id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                        <input
+                            type="text"
+                            id="fullName"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                        />
                     </div>
 
                     <div className="form-group">
                         <label htmlFor="email">Email Address</label>
-                        <input type="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                        <input
+                            type="email"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                        />
                     </div>
 
                     <div className="form-group">
                         <label htmlFor="password">Password</label>
-                        <input type="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                        <input
+                            type="password"
+                            id="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
                     </div>
 
                     <div className="form-group">
                         <label htmlFor="confirmPassword">Confirm Password</label>
-                        <input type="password" id="confirmPassword" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-                        {triedSubmit && (['auth/weak-password', 'mismatch'].includes(errorCode) || (password.length < 6 && triedSubmit)) && (
-                            <div className="hint">{errorCode === 'auth/weak-password' ? (error || 'Password should be at least 6 characters.') : (errorCode === 'mismatch' ? (error || "Those passwords didn't match. Try again.") : (password.length < 6 ? 'Password should be at least 6 characters.' : ''))}</div>
-                        )}
+                        <input
+                            type="password"
+                            id="confirmPassword"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                        />
                     </div>
+
+                    {triedSubmit &&
+                        ['auth/weak-password', 'mismatch'].includes(errorCode) && (
+                            <div className="hint">
+                                {errorCode === 'auth/weak-password'
+                                    ? 'Password should be at least 6 characters.'
+                                    : errorCode === 'mismatch'
+                                        ? "Those passwords didn't match. Try again."
+                                        : password.length < 6
+                                            ? 'Password should be at least 6 characters.'
+                                            : ''}
+                            </div>
+                        )}
 
                     <button className="button" type="submit" disabled={isRegistering}>
                         {isRegistering ? 'Creating...' : 'Create Account'}
                     </button>
                 </form>
 
-                <h2>Already have an account? <Link to="/login">Log In</Link></h2>
+                <h2>
+                    Already have an account?{' '}
+                    <Link to="/login" className="link">
+                        Log In
+                    </Link>
+                </h2>
             </div>
 
             {isModalVisible && (
@@ -124,12 +184,14 @@ const SignUpPage = () => {
                     <div className="modal-content">
                         <h2>Success!</h2>
                         <p>Your account has been created</p>
-                        <button id="closeModalBtn" onClick={handleCloseModal}>OK</button>
+                        <button id="closeModalBtn" onClick={handleCloseModal}>
+                            OK
+                        </button>
                     </div>
                 </div>
             )}
         </div>
     );
-}
+};
 
 export default SignUpPage;

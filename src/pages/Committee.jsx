@@ -563,71 +563,67 @@ export default function Committee() {
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {(committeeData.members || []).map((member, idx) => (
-                                    <tr key={member.uid || idx}>
-                                        <td className="member-name">
-                                            <div className="member-item">
-                                                <div className="member-avatar">
-                                                    {member.photoURL ? (
-                                                        <img
-                                                            src={member.photoURL}
-                                                            alt={member.displayName || member.uid}
-                                                        />
-                                                    ) : (
-                                                        <div className="avatar-initials">
-                                                            {(
-                                                                member.displayName ||
-                                                                (member.uid === auth.currentUser?.uid
-                                                                    ? auth.currentUser.displayName
-                                                                    : member.uid) ||
-                                                                ''
-                                                            )
-                                                                .split(' ')
-                                                                .map(s => s[0])
-                                                                .slice(0, 2)
-                                                                .join('')
-                                                                .toUpperCase()}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="member-info">
-                                                    <div
-                                                        className="member-main"
-                                                        style={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '0.6rem',
-                                                        }}
-                                                    >
-                                                        <div className="member-name-text">
-                                                            {member.displayName ||
-                                                                (member.uid === auth.currentUser?.uid
-                                                                    ? auth.currentUser.displayName
-                                                                    : member.uid)}
-                                                        </div>
-                                                    </div>
-                                                    <div className="member-sub">
-                                                        {member.email && (
-                                                            <div className="member-email">
-                                                                {member.email}
-                                                            </div>
-                                                        )}
-                                                        {member.joinedAt && (
-                                                            <div className="member-joined">
-                                                                Joined {member.joinedAt}
+                                {(committeeData.members || []).map((member, idx) => {
+                                    const display =
+                                        member.displayName ||
+                                        member.email ||
+                                        (member.uid === auth.currentUser?.uid
+                                            ? auth.currentUser.displayName || auth.currentUser.email || 'You'
+                                            : 'Member');
+
+                                    return (
+                                        <tr key={member.uid || idx}>
+                                            <td className="member-name">
+                                                <div className="member-item">
+                                                    <div className="member-avatar">
+                                                        {member.photoURL ? (
+                                                            <img
+                                                                src={member.photoURL}
+                                                                alt={display}
+                                                            />
+                                                        ) : (
+                                                            <div className="avatar-initials">
+                                                                {display
+                                                                    .split(' ')
+                                                                    .map(s => s[0])
+                                                                    .slice(0, 2)
+                                                                    .join('')
+                                                                    .toUpperCase()}
                                                             </div>
                                                         )}
                                                     </div>
+                                                    <div className="member-info">
+                                                        <div
+                                                            className="member-main"
+                                                            style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.6rem',
+                                                            }}
+                                                        >
+                                                            <div className="member-name-text">{display}</div>
+                                                        </div>
+                                                        <div className="member-sub">
+                                                            {member.email && (
+                                                                <div className="member-email">{member.email}</div>
+                                                            )}
+                                                            {member.joinedAt && (
+                                                                <div className="member-joined">
+                                                                    Joined {member.joinedAt}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="member-pos">
-                                            <div className="role-badge position-badge">
-                                                {member.role === 'owner' ? 'Owner' : member.role}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                            </td>
+                                            <td className="member-pos">
+                                                <div className="role-badge position-badge">
+                                                    {member.role === 'owner' ? 'Owner' : member.role}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                                 </tbody>
                             </table>
                         </div>
