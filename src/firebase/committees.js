@@ -6,27 +6,6 @@ import {
     getDoc, getDocs, runTransaction, query, where
 } from 'firebase/firestore';
 
-/* Create a committee and add the creator as owner */
-export async function createCommittee({ name, description, settings = {} }) {
-    if (!auth.currentUser) throw new Error('Not signed in');
-    const committeeRef = doc(collection(db, 'committees'));
-    await setDoc(committeeRef, {
-        name,
-        description,
-        ownerUid: auth.currentUser.uid,
-        ownerDisplayName: auth.currentUser.displayName,
-        settings,
-        createdAt: serverTimestamp()
-    });
-    // add member document for owner - include uid field so collectionGroup queries can find members by uid
-    await setDoc(doc(db, 'committees', committeeRef.id, 'members', auth.currentUser.uid), {
-        uid: auth.currentUser.uid,
-        role: 'owner',
-        addedAt: serverTimestamp()
-    });
-    return committeeRef.id;
-}
-
 /* Add a user to a committee (chair/owner only UI should call this) */
 export async function addMemberToCommittee(committeeId, userUid, role = 'member') {
     if (!auth.currentUser) throw new Error('Not signed in');
@@ -43,24 +22,6 @@ export async function addMemberToCommittee(committeeId, userUid, role = 'member'
 export async function setMemberRole(committeeId, userUid, role) {
     const memberRef = doc(db, 'committees', committeeId, 'members', userUid);
     await updateDoc(memberRef, { role });
-}
-
-/* Create a motion in a committee */
-export async function createMotion(committeeId, motion) {
-    // motion: { title, description, type, threshold, anonymousVotes (bool), secondRequired, discussionStyle, voteThreshold, ... }
-    if (!auth.currentUser) throw new Error('Not signed in');
-    const motionsCol = collection(db, 'committees', committeeId, 'motions');
-    const docRef = await addDoc(motionsCol, {
-        ...motion,
-        creatorUid: auth.currentUser.uid,
-        creatorDisplayName: auth.currentUser.displayName,
-        status: 'active',
-        tally: { yes: 0, no: 0, abstain: 0 },
-        createdAt: serverTimestamp(),
-        // Explicitly set threshold and voteThreshold, with a default for voteThreshold
-        threshold: motion.threshold || 'Simple Majority',
-    });
-    return docRef.id;
 }
 
 /* Reply to motion (discussion) */
@@ -161,78 +122,6 @@ export async function proposeOverturn(committeeId, originalMotionId, { title, de
     return createMotion(committeeId, { title, description, type: 'overturn', relatedTo: originalMotionId });
 }
 
-/* Delete a motion (creator or committee owner) */
-export async function deleteMotion(committeeId, motionId) {
-    if (!auth.currentUser) throw new Error('Not signed in');
-
-    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
-    const motionSnap = await getDoc(motionRef);
-
-    if (!motionSnap.exists()) {
-        throw new Error('Motion not found');
-    }
-
-    const motionData = motionSnap.data();
-    const creatorUid = motionData.creatorUid;
-
-    const committeeRef = doc(db, 'committees', committeeId);
-    const committeeSnap = await getDoc(committeeRef);
-    const committeeData = committeeSnap.data();
-    const ownerUid = committeeData.ownerUid;
-
-    if (auth.currentUser.uid !== creatorUid && auth.currentUser.uid !== ownerUid) {
-        throw new Error('Not authorized to delete this motion');
-    }
-
-    await updateDoc(motionRef, {
-        status: 'deleted',
-        deletedAt: serverTimestamp()
-    });
-    return true;
-}
-
-/* Close voting for a motion (committee owner) */
-export async function closeMotionVoting(committeeId, motionId) {
-    if (!auth.currentUser) throw new Error('Not signed in');
-
-    const committeeRef = doc(db, 'committees', committeeId);
-    const committeeSnap = await getDoc(committeeRef);
-    const committeeData = committeeSnap.data();
-    const ownerUid = committeeData.ownerUid;
-
-    if (auth.currentUser.uid !== ownerUid) {
-        throw new Error('Not authorized to close voting for this motion');
-    }
-
-    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
-    await updateDoc(motionRef, {
-        status: 'closed',
-        closedAt: serverTimestamp()
-    });
-    return true;
-}
-
-/* Approve a motion (committee owner) */
-export async function approveMotion(committeeId, motionId) {
-    if (!auth.currentUser) throw new Error('Not signed in');
-
-    const committeeRef = doc(db, 'committees', committeeId);
-    const committeeSnap = await getDoc(committeeRef);
-    const committeeData = committeeSnap.data();
-    const ownerUid = committeeData.ownerUid;
-
-    if (auth.currentUser.uid !== ownerUid) {
-        throw new Error('Not authorized to approve this motion');
-    }
-
-    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
-    await updateDoc(motionRef, {
-        status: 'completed',
-        approvedAt: serverTimestamp()
-    });
-    return true;
-}
-
 /* Deny a motion (committee owner) */
 export async function denyMotion(committeeId, motionId) {
     if (!auth.currentUser) throw new Error('Not signed in');
@@ -268,6 +157,50 @@ export async function updateDisplayName(newName) {
     }, { merge: true });
 }
 
+/**
+ * Create a new committee and add the current user as owner member.
+ */
+export async function createCommittee({ name, description, settings = {} }) {
+    const user = auth.currentUser;
+    if (!user || !user.uid) {
+        throw new Error('Not signed in');
+    }
+
+    // Create the committee document
+    const committeesCol = collection(db, 'committees');
+    const committeeRef = await addDoc(committeesCol, {
+        name,
+        description,
+        ownerUid: user.uid,
+        settings,
+        createdAt: serverTimestamp(),
+        inviteCode: null,
+    });
+
+    const committeeId = committeeRef.id;
+
+    // Create owner membership document with denormalized profile
+    const ownerDisplayName = user.displayName || user.email || '';
+    const ownerEmail = user.email || '';
+
+    await setDoc(
+        doc(db, 'committees', committeeId, 'members', user.uid),
+        {
+            uid: user.uid,
+            role: 'owner',
+            displayName: ownerDisplayName,
+            email: ownerEmail,
+            joinedAt: serverTimestamp(),
+        },
+        { merge: true }
+    );
+
+    return committeeId;
+}
+
+/**
+ * Generate a unique 6-character invite code and store it on the committee doc.
+ */
 function randomInviteCode() {
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     let code = '';
@@ -281,8 +214,7 @@ export async function generateUniqueInviteCode(committeeId) {
     let code = '';
     let unique = false;
 
-    // make a few attempts; 6 uppercase letters gives plenty of entropy
-    // but loop defensively
+    // Try a few times to avoid unlikely collisions
     for (let i = 0; i < 10 && !unique; i += 1) {
         code = randomInviteCode();
         const q = query(
@@ -302,6 +234,9 @@ export async function generateUniqueInviteCode(committeeId) {
     return code;
 }
 
+/**
+ * Join a committee by a 6-character invite code.
+ */
 export async function joinCommitteeByCode(rawCode) {
     const code = rawCode.trim().toUpperCase();
     if (!code) throw new Error('No code provided');
@@ -309,7 +244,6 @@ export async function joinCommitteeByCode(rawCode) {
     const user = auth.currentUser;
     if (!user || !user.uid) throw new Error('Not signed in');
 
-    // find committee with this inviteCode
     const q = query(
         collection(db, 'committees'),
         where('inviteCode', '==', code)
@@ -329,12 +263,55 @@ export async function joinCommitteeByCode(rawCode) {
         {
             uid: user.uid,
             role: 'member',
-            joinedAt: serverTimestamp(),
             displayName: user.displayName || user.email || '',
             email: user.email || '',
+            joinedAt: serverTimestamp(),
         },
         { merge: true }
     );
 
     return { committeeId, committeeName: data.name || '' };
 }
+
+/**
+ * Existing helpers (stubs; keep your implementations and ensure they
+ * import from here where used in Committee/Motions components).
+ */
+export async function createMotion(committeeId, motionPayload) {
+    const user = auth.currentUser;
+    if (!user || !user.uid) {
+        throw new Error('Not signed in');
+    }
+
+    const motionsCol = collection(db, 'committees', committeeId, 'motions');
+    const ref = await addDoc(motionsCol, {
+        ...motionPayload,
+        creatorUid: user.uid,
+        creatorDisplayName: user.displayName || user.email || '',
+        createdAt: serverTimestamp(),
+        status: 'active',
+    });
+    return ref.id;
+}
+
+export async function deleteMotion(committeeId, motionId) {
+    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
+    await updateDoc(motionRef, { status: 'deleted' });
+}
+
+export async function approveMotion(committeeId, motionId) {
+    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
+    await updateDoc(motionRef, {
+        status: 'completed',
+        approvedAt: serverTimestamp(),
+    });
+}
+
+export async function closeMotionVoting(committeeId, motionId) {
+    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
+    await updateDoc(motionRef, {
+        status: 'closed',
+        closedAt: serverTimestamp(),
+    });
+}
+
