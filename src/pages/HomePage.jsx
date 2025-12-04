@@ -96,6 +96,7 @@ function HomePage({ currentUser }) {
             where('uid', '==', currentUser.uid)
         );
 
+        let unsubMotionsAll = null;
         const unsub = onSnapshot(
             q,
             async snap => {
@@ -141,13 +142,43 @@ function HomePage({ currentUser }) {
                     out.stats = stats;
                     return out;
                 });
+
+                // Live listener for all active motions across all committees
+                try {
+                    const mqAll = query(collectionGroup(db, 'motions'), where('status', '==', 'active'));
+                    unsubMotionsAll = onSnapshot(mqAll, (msnap) => {
+                        const countsByCommittee = {};
+                        msnap.docs.forEach(d => {
+                            const committeeRef = d.ref.parent.parent;
+                            if (committeeRef) {
+                                const cid = committeeRef.id;
+                                countsByCommittee[cid] = (countsByCommittee[cid] || 0) + 1;
+                            }
+                        });
+                        setHomeData(prev => {
+                            const committees2 = (prev.committees || []).map(c => ({ ...c, activeMotions: countsByCommittee[c.id] || 0 }));
+                            const out = { ...prev, committees: committees2 };
+                            const stats = [...(out.stats || [])];
+                            // total active motions is at stats[1]
+                            const totalActive = Object.values(countsByCommittee).reduce((s, v) => s + v, 0);
+                            if (stats[1]) stats[1] = { ...stats[1], value: totalActive };
+                            out.stats = stats;
+                            return out;
+                        });
+                    });
+                } catch (e) {
+                    // ignore collectionGroup listener errors
+                }
             },
             err => {
                 console.warn('committee membership listener failed', err);
             }
         );
 
-        return () => unsub();
+        return () => {
+            try { unsub(); } catch (e) { }
+            try { if (unsubMotionsAll) unsubMotionsAll(); } catch (e) { }
+        };
     }, [currentUser]);
 
     function handleCreateClick() {
@@ -357,7 +388,7 @@ function HomePage({ currentUser }) {
                                             <span className="member-tag">{committee.role}</span>
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                            <div className="committee-motions-count header-count">Active Motions: {homeData.committeeData?.[committee.name]?.motionsCount ?? 0}</div>
+                                            <div className="committee-motions-count header-count">Active Motions: {committee.activeMotions ?? 0}</div>
                                             <div className="card-more">
                                                 <button
                                                     className="more-btn"
