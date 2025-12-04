@@ -76,11 +76,37 @@ export default function Motions() {
                 };
             });
 
-            // asynchronously enrich motions with displayName from users collection when possible
+            // asynchronously enrich motions with related subcollections (replies, votes)
             (async () => {
                 try {
-                    // build list of unique uids to fetch
-                    const uids = Array.from(new Set(raw.map(m => m.creatorUid).filter(Boolean)));
+                    // We'll build the complete UID set (creators, reply authors, voters)
+                    // after fetching replies/votes so we only fetch profiles once.
+
+                    // Fetch replies and votes subcollections for each motion so persisted comments and vote records show up
+                    const repliesByMotion = {};
+                    const votesByMotion = {};
+                    await Promise.all(raw.map(async (m) => {
+                        try {
+                            const repliesSnap = await getDocs(collection(db, 'committees', cid, 'motions', m.id, 'replies'));
+                            repliesByMotion[m.id] = repliesSnap.docs.map(r => ({ id: r.id, ...(r.data() || {}) }));
+                        } catch (e) {
+                            repliesByMotion[m.id] = m.replies || [];
+                        }
+                        try {
+                            const votesSnap = await getDocs(collection(db, 'committees', cid, 'motions', m.id, 'votes'));
+                            votesByMotion[m.id] = votesSnap.docs.map(v => ({ id: v.id, ...(v.data() || {}) }));
+                        } catch (e) {
+                            votesByMotion[m.id] = [];
+                        }
+                    }));
+
+                    // Build set of user UIDs to fetch profiles for (creators, reply authors, voters)
+                    const uidSet = new Set(raw.map(m => m.creatorUid).filter(Boolean));
+                    Object.values(repliesByMotion).forEach(list => list.forEach(r => r.authorUid && uidSet.add(r.authorUid)));
+                    Object.values(votesByMotion).forEach(list => list.forEach(v => v.voterUid && uidSet.add(v.voterUid)));
+                    const uids = Array.from(uidSet);
+
+                    // Fetch profiles for all relevant UIDs
                     const profiles = {};
                     await Promise.all(uids.map(async (uid) => {
                         try {
@@ -88,17 +114,6 @@ export default function Motions() {
                             if (userDoc.exists()) profiles[uid] = userDoc.data();
                         } catch (e) {
                             // ignore individual profile errors
-                        }
-                    }));
-
-                    // Fetch replies subcollections for each motion so persisted comments show up
-                    const repliesByMotion = {};
-                    await Promise.all(raw.map(async (m) => {
-                        try {
-                            const repliesSnap = await getDocs(collection(db, 'committees', cid, 'motions', m.id, 'replies'));
-                            repliesByMotion[m.id] = repliesSnap.docs.map(r => ({ id: r.id, ...(r.data() || {}) }));
-                        } catch (e) {
-                            repliesByMotion[m.id] = m.replies || [];
                         }
                     }));
 
@@ -115,6 +130,7 @@ export default function Motions() {
                             creator: displayName || (m.creatorUid || ''),
                             status: m.status,
                             replies: repliesByMotion[m.id] || m.replies || [],
+                            votes: votesByMotion[m.id] || [],
                             tally: m.tally,
                             threshold: m.threshold, // Ensure threshold is passed through
                             createdAt: m.createdAt || null
@@ -486,22 +502,100 @@ export default function Motions() {
 
                 {selectedTab === 'voting' && (
                     <div className="voting-section">
-                        <h4>Voting</h4>
-                        <div className="vote-grid">
-                            <div className="vote-card yes-card">
-                                <div className="vote-icon">✓</div>
-                                <div className="vote-count">{VOTE_LABELS.yes}: {motion.tally?.yes || 0}</div>
-                                <button className="vote-btn vote-yes" onClick={() => vote(null, motion.id, 'yes')} disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{`Vote ${VOTE_LABELS.yes}`}</button>
+                        <div className="voting-status card">
+                            <div className="status-header">
+                                <div>
+                                    <h4>Voting Status</h4>
+                                    <p className="sub">{motion.threshold || 'Simple majority required to pass'}</p>
+                                </div>
                             </div>
-                            <div className="vote-card no-card">
-                                <div className="vote-icon">✕</div>
-                                <div className="vote-count">{VOTE_LABELS.no}: {motion.tally?.no || 0}</div>
-                                <button className="vote-btn vote-no" onClick={() => vote(null, motion.id, 'no')} disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{`Vote ${VOTE_LABELS.no}`}</button>
+
+                            <div className="status-stats">
+                                <div className="stat-block">
+                                    <div className="stat-number yes">{motion.tally?.yes || 0}</div>
+                                    <div className="stat-label">Yes</div>
+                                </div>
+                                <div className="stat-block">
+                                    <div className="stat-number no">{motion.tally?.no || 0}</div>
+                                    <div className="stat-label">No</div>
+                                </div>
+                                <div className="stat-block">
+                                    <div className="stat-number abstain">{motion.tally?.abstain || 0}</div>
+                                    <div className="stat-label">Abstain</div>
+                                </div>
                             </div>
-                            <div className="vote-card abstain-card">
-                                <div className="vote-icon">—</div>
-                                <div className="vote-count">{VOTE_LABELS.abstain}: {motion.tally?.abstain || 0}</div>
-                                <button className="vote-btn vote-abstain" onClick={() => vote(null, motion.id, 'abstain')} disabled={motion.status === 'closed' || motion.status === 'completed' || motion.status === 'deleted'}>{VOTE_LABELS.abstain}</button>
+
+                            <div className="status-progress">
+                                {(() => {
+                                    const yes = motion.tally?.yes || 0;
+                                    const no = motion.tally?.no || 0;
+                                    const abstain = motion.tally?.abstain || 0;
+                                    const total = yes + no + abstain;
+                                    const pct = total === 0 ? 0 : Math.round((yes / total) * 100);
+                                    const passing = yes > no; // simple heuristic
+                                    return (
+                                        <>
+                                            <div className="progress-meta">
+                                                <div className="progress-label">Progress ({yes} of {Math.max(1, Math.floor((total / 2) || 1))} required)</div>
+                                                <div className="progress-pct">{pct}%</div>
+                                            </div>
+                                            <div className="progress-bar">
+                                                <div className="progress-fill" style={{ width: `${pct}%` }} />
+                                            </div>
+                                            <div className="progress-footer">
+                                                <div className="total-votes">👥 {total} total votes</div>
+                                                <div className={`passing-pill ${passing ? 'passing' : 'failing'}`}>{passing ? 'Passing' : 'Not Passing'}</div>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+
+                        <div className="cast-vote card">
+                            <h4>Cast Your Vote</h4>
+                            <p className="sub">Choose your position on this motion</p>
+                            <div className="vote-options">
+                                <div className="vote-option yes-option" onClick={() => vote(null, motion.id, 'yes')} role="button" tabIndex={0} aria-disabled={motion.status === 'closed'}>
+                                    <div className="vote-ico">✓</div>
+                                    <div className="vote-label">Yes</div>
+                                </div>
+                                <div className="vote-option no-option" onClick={() => vote(null, motion.id, 'no')} role="button" tabIndex={0} aria-disabled={motion.status === 'closed'}>
+                                    <div className="vote-ico">✕</div>
+                                    <div className="vote-label">No</div>
+                                </div>
+                                <div className="vote-option abstain-option" onClick={() => vote(null, motion.id, 'abstain')} role="button" tabIndex={0} aria-disabled={motion.status === 'closed'}>
+                                    <div className="vote-ico">—</div>
+                                    <div className="vote-label">Abstain</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="vote-record card">
+                            <h4>Vote Record</h4>
+                            <p className="sub">Public voting record for this motion</p>
+                            <div className="vote-list">
+                                {(motion.votes || []).map((v, i) => {
+                                    const when = v.createdAt || v.created || v.updatedAt || null;
+                                    const whenLabel = (function fmt(val) { try { if (val && val.toDate) return val.toDate().toLocaleString(); const d = new Date(val); if (!isNaN(d.getTime())) return d.toLocaleString(); } catch (e) { } return ''; })(when);
+                                    const choice = v.choice || 'abstain';
+                                    // Prefer stored voterDisplayName when available (written at vote time),
+                                    // otherwise fall back to voterUid and current user display
+                                    const display = v.voterDisplayName || (v.voterUid && (v.voterUid === auth?.currentUser?.uid ? (auth?.currentUser?.displayName || 'You') : v.voterUid)) || 'Member';
+                                    const initials = (display || 'M').toString().split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+                                    return (
+                                        <div className="vote-list-item" key={i}>
+                                            <div className="vote-list-left">
+                                                <div className="avatar small">{initials}</div>
+                                            </div>
+                                            <div className="vote-list-main">
+                                                <div className="vote-list-name">{display}</div>
+                                                <div className="vote-list-date">{whenLabel}</div>
+                                            </div>
+                                            <div className={`vote-list-badge ${choice === 'yes' ? 'yes' : choice === 'no' ? 'no' : 'abstain'}`}>{choice === 'yes' ? 'Yes' : choice === 'no' ? 'No' : 'Abstain'}</div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>

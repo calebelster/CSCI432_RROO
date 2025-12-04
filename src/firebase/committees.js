@@ -108,6 +108,7 @@ export async function castVote(committeeId, motionId, { choice, anonymous = fals
 
             tx.update(voteRef, {
                 voterUid: auth.currentUser.uid,
+                voterDisplayName: auth.currentUser.displayName || auth.currentUser.email || auth.currentUser.uid,
                 choice,
                 anonymous,
                 updatedAt: serverTimestamp()
@@ -122,6 +123,7 @@ export async function castVote(committeeId, motionId, { choice, anonymous = fals
 
             tx.set(voteRef, {
                 voterUid: auth.currentUser.uid,
+                voterDisplayName: auth.currentUser.displayName || auth.currentUser.email || auth.currentUser.uid,
                 choice,
                 anonymous,
                 createdAt: serverTimestamp()
@@ -237,7 +239,7 @@ export async function updateDisplayName(newName) {
     // Firebase Auth update (modular SDK)
     await updateProfile(auth.currentUser, { displayName: newName });
     // Ensure local user reflects changes immediately
-    try { await auth.currentUser.reload?.(); } catch {}
+    try { await auth.currentUser.reload?.(); } catch { }
     // Mirror into Firestore users doc
     await setDoc(doc(db, 'users', auth.currentUser.uid), {
         displayName: newName,

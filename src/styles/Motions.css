@@ -484,6 +484,26 @@ h1 {
     box-sizing: border-box;
 }
 
+/* Make voting cards match the same centered 75vw width */
+.motion-detail .voting-section>.card {
+    width: 75vw;
+    max-width: 1200px;
+    margin: 12px auto;
+    box-sizing: border-box;
+}
+
+/* Ensure vote options expand to the card width and distribute evenly */
+.voting-section .vote-options {
+    width: 100%;
+    display: flex;
+    gap: 18px;
+}
+
+.voting-section .vote-option {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
 /* Ensure inner text aligns consistently from the same left edge */
 .motion-detail .cards-row,
 .motion-detail .motion-details-box,
@@ -495,8 +515,8 @@ h1 {
 .discussion-overview.card {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 18px 20px;
+    gap: 8px;
+    padding: 14px 18px;
 }
 
 /* Make discussion cards fill most of the page width with side margins and softer rounding */
@@ -524,7 +544,7 @@ h1 {
 
 .discussion-stats {
     display: flex;
-    gap: 48px;
+    gap: 28px;
     align-items: center;
     justify-content: center;
     margin-top: 6px;
@@ -569,9 +589,9 @@ h1 {
 }
 
 .discussion-stat .stat-count {
-    font-size: 28px;
+    font-size: 22px;
     font-weight: 800;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .discussion-stat .stat-label {
@@ -821,5 +841,238 @@ h1 {
         margin: 12px auto;
         padding-left: 8px;
         padding-right: 8px;
+    }
+}
+
+/* Voting UI styles */
+.voting-section {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.voting-status.card {
+    padding: 20px 24px;
+}
+
+.status-stats {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    margin: 12px 0 8px 0;
+}
+
+.stat-block {
+    text-align: center;
+}
+
+.stat-number {
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.stat-number.yes {
+    color: #16a34a;
+}
+
+.stat-number.no {
+    color: #ef4444;
+}
+
+.stat-number.abstain {
+    color: #6b7280;
+}
+
+.stat-label {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.status-progress {
+    margin-top: 12px;
+}
+
+.progress-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.progress-label {
+    color: #6b7280;
+}
+
+.progress-pct {
+    color: #6b7280;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 10px;
+    background: #f3f4f6;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #0f172a;
+    border-radius: 999px;
+}
+
+.progress-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.passing-pill {
+    padding: 6px 10px;
+    border-radius: 12px;
+    background: #eef2ff;
+    color: #111;
+    font-weight: 700;
+}
+
+.passing-pill.passing {
+    background: #0f172a;
+    color: #fff;
+}
+
+.cast-vote.card {
+    padding: 18px 22px;
+}
+
+.vote-options {
+    display: flex;
+    gap: 18px;
+    margin-top: 12px;
+}
+
+.vote-option {
+    flex: 1;
+    border-radius: 10px;
+    border: 1px solid #e6e7eb;
+    padding: 22px;
+    text-align: center;
+    cursor: pointer;
+    background: #fff;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.04);
+}
+
+.vote-option:hover {
+    transform: translateY(-4px);
+}
+
+.vote-option .vote-ico {
+    font-size: 20px;
+    margin-bottom: 8px;
+}
+
+.vote-option .vote-label {
+    font-weight: 700;
+}
+
+.yes-option {
+    border-color: rgba(16, 185, 129, 0.12);
+}
+
+.no-option {
+    border-color: rgba(239, 68, 68, 0.08);
+}
+
+.abstain-option {
+    border-color: rgba(107, 114, 128, 0.06);
+}
+
+/* Color coordinate the icons inside vote option cards */
+.yes-option .vote-ico {
+    color: #16a34a;
+}
+
+.no-option .vote-ico {
+    color: #ef4444;
+}
+
+.abstain-option .vote-ico {
+    color: #6b7280;
+}
+
+/* Slightly tint the option background on hover using the same color */
+.yes-option:hover {
+    background: rgba(16, 163, 127, 0.03);
+}
+
+.no-option:hover {
+    background: rgba(239, 68, 68, 0.03);
+}
+
+.abstain-option:hover {
+    background: rgba(107, 114, 128, 0.02);
+}
+
+.vote-record.card {
+    padding: 18px 22px;
+}
+
+.vote-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.vote-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fff;
+    border-radius: 10px;
+    padding: 12px 14px;
+    border: 1px solid #f1f5f9;
+}
+
+.vote-list-left .avatar.small {
+    width: 36px;
+    height: 36px;
+    font-size: 13px;
+}
+
+.vote-list-name {
+    font-weight: 700;
+}
+
+.vote-list-date {
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.vote-list-badge {
+    margin-left: auto;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+.vote-list-badge.yes {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.vote-list-badge.no {
+    background: #fff1f2;
+    color: #b91c1c;
+}
+
+.vote-list-badge.abstain {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+@media (max-width: 900px) {
+    .vote-options {
+        flex-direction: column;
     }
 }
