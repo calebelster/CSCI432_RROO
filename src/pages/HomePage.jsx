@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import '../styles/HomePage.css';
 import { createCommittee } from '../firebase/committees';
 import { db } from '../firebase/firebase';
-import { collectionGroup, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
+import { collectionGroup, query, where, onSnapshot, getDoc, doc, getDocs, collection } from 'firebase/firestore';
 
 function HomePage({ currentUser }) {
     const navigate = useNavigate();
@@ -14,7 +14,7 @@ function HomePage({ currentUser }) {
         profile: { name: 'Profile Name' },
         stats: [
             { title: 'Your Committees', value: 0, description: "Active committees you're part of" },
-            { title: 'Pending Motions', value: 0, description: "Motions requiring your attention" }
+            { title: 'Active Motions', value: 0, description: "Motions requiring your attention" }
         ],
         committees: [],
         committeeData: {}
@@ -61,6 +61,21 @@ function HomePage({ currentUser }) {
         syncNameFromFirestore();
     }, [currentUser]);
 
+    // Close the "more" menu when clicking outside of it
+    useEffect(() => {
+        if (!openMenuFor) return;
+        const handleDocClick = (e) => {
+            // if click is inside a more-btn or more-menu-dropdown, ignore
+            const btn = e.target.closest && e.target.closest('.more-btn');
+            const dropdown = e.target.closest && e.target.closest('.more-menu-dropdown');
+            if (!btn && !dropdown) {
+                setOpenMenuFor(null);
+            }
+        };
+        document.addEventListener('mousedown', handleDocClick);
+        return () => document.removeEventListener('mousedown', handleDocClick);
+    }, [openMenuFor]);
+
     // Real-time: find committees where the current user has a member doc
     useEffect(() => {
         if (!currentUser || !currentUser.uid) return;
@@ -95,12 +110,30 @@ function HomePage({ currentUser }) {
                 const dateB = b.rawCreatedAt ? b.rawCreatedAt.toDate().getTime() : 0;
                 return dateB - dateA;
             });
+            // After we have the committees list, fetch active motions count for each committee
+            const committeeData = {};
+            await Promise.all(committees.map(async (c) => {
+                try {
+                    const motionsSnap = await getDocs(collection(db, 'committees', c.id, 'motions'));
+                    const motions = motionsSnap.docs.map(d => d.data());
+                    const activeCount = motions.filter(md => (md.status === 'active' || md.status === 'closed') && md.status !== 'deleted').length;
+                    const totalCount = motions.length;
+                    committeeData[c.name] = { motionsCount: activeCount, totalMotions: totalCount };
+                } catch (e) {
+                    committeeData[c.name] = { motionsCount: 0, totalMotions: 0 };
+                }
+            }));
+
             setHomeData(prev => {
                 const out = { ...prev, committees };
                 // update stats count
                 const stats = [...(out.stats || [])];
                 if (stats[0]) stats[0] = { ...stats[0], value: committees.length };
                 out.stats = stats;
+                out.committeeData = { ...(out.committeeData || {}), ...committeeData };
+                // Update the Active Motions stat to be the sum of active motions across committees
+                const totalActiveAcross = Object.values(out.committeeData).reduce((sum, cd) => sum + (cd?.motionsCount || 0), 0);
+                if (out.stats[1]) out.stats[1] = { ...out.stats[1], value: totalActiveAcross };
                 return out;
             });
         }, (err) => {
@@ -258,37 +291,40 @@ function HomePage({ currentUser }) {
                                             <h3>{committee.name}</h3>
                                             <span className="member-tag">{committee.role}</span>
                                         </div>
-                                        <div className="card-more">
-                                            <button
-                                                className="more-btn"
-                                                onClick={() =>
-                                                    setOpenMenuFor(
-                                                        openMenuFor === committee.name ? null : committee.name
-                                                    )
-                                                }
-                                            >
-                                                ⋯
-                                            </button>
-                                            {openMenuFor === committee.name && (
-                                                <div className="more-menu-dropdown">
-                                                    <button
-                                                        className="more-item"
-                                                        onClick={() => {
-                                                            setConfirmDeleteFor(committee.name);
-                                                            setOpenMenuFor(null);
-                                                        }}
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </div>
-                                            )}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                            <div className="committee-motions-count header-count">Active Motions: {homeData.committeeData?.[committee.name]?.motionsCount ?? 0}</div>
+                                            <div className="card-more">
+                                                <button
+                                                    className="more-btn"
+                                                    onClick={() =>
+                                                        setOpenMenuFor(
+                                                            openMenuFor === committee.name ? null : committee.name
+                                                        )
+                                                    }
+                                                >
+                                                    ⋯
+                                                </button>
+                                                {openMenuFor === committee.name && (
+                                                    <div className="more-menu-dropdown">
+                                                        <button
+                                                            className="more-item"
+                                                            onClick={() => {
+                                                                setConfirmDeleteFor(committee.name);
+                                                                setOpenMenuFor(null);
+                                                            }}
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     <p className="committee-description">{committee.description}</p>
                                 </div>
                                 <div className="committee-footer">
                                     <span className="date">{committee.date}</span>
-                                    <div style={{ display: 'flex', gap: 8 }}>
+                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                         <button
                                             className="enter-button"
                                             onClick={() => enterCommittee(committee)}
