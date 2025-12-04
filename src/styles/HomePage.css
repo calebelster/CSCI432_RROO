@@ -144,6 +144,12 @@ body {
     margin-bottom: 1.5rem;
 }
 
+.committees-header-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
 .committees-header h2 {
     font-size: 1.5rem;
     font-weight: 700;

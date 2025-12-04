@@ -374,3 +374,74 @@ export async function updateDisplayName(newName) {
         updatedAt: serverTimestamp()
     }, { merge: true });
 }
+
+function randomInviteCode() {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let code = '';
+    for (let i = 0; i < 6; i += 1) {
+        code += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+    }
+    return code;
+}
+
+export async function generateUniqueInviteCode(committeeId) {
+    let code = '';
+    let unique = false;
+
+    // make a few attempts; 6 uppercase letters gives plenty of entropy
+    // but loop defensively
+    for (let i = 0; i < 10 && !unique; i += 1) {
+        code = randomInviteCode();
+        const q = query(
+            collection(db, 'committees'),
+            where('inviteCode', '==', code)
+        );
+        const snap = await getDocs(q);
+        unique = snap.empty;
+    }
+
+    if (!unique) {
+        throw new Error('Could not generate unique invite code.');
+    }
+
+    const ref = doc(db, 'committees', committeeId);
+    await updateDoc(ref, { inviteCode: code });
+    return code;
+}
+
+export async function joinCommitteeByCode(rawCode) {
+    const code = rawCode.trim().toUpperCase();
+    if (!code) throw new Error('No code provided');
+
+    const user = auth.currentUser;
+    if (!user || !user.uid) throw new Error('Not signed in');
+
+    // find committee with this inviteCode
+    const q = query(
+        collection(db, 'committees'),
+        where('inviteCode', '==', code)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) {
+        throw new Error('Invalid or expired code.');
+    }
+
+    const committeeDoc = snap.docs[0];
+    const committeeId = committeeDoc.id;
+    const data = committeeDoc.data();
+
+    const memberRef = doc(db, 'committees', committeeId, 'members', user.uid);
+    await setDoc(
+        memberRef,
+        {
+            uid: user.uid,
+            role: 'member',
+            joinedAt: serverTimestamp(),
+            displayName: user.displayName || user.email || '',
+            email: user.email || '',
+        },
+        { merge: true }
+    );
+
+    return { committeeId, committeeName: data.name || '' };
+}
