@@ -65,7 +65,7 @@ export default function CommitteeSettings({ committeeId, currentSettings = {}, o
     }
 
     return (
-        <div className="settings-card card">
+        <div>
             <h3>Committee Settings</h3>
 
             {/* Offline mode control removed as requested */}

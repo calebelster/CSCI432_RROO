@@ -782,6 +782,16 @@ select {
 }
 
 /* committee settings block inside modal */
+.settings-section {
+	max-width: 600px;
+	margin: 20px auto 0 auto;
+	padding: 20px;
+	background: var(--card);
+	border: 1px solid var(--border-color);
+	border-radius: 12px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
 .committee-settings {
 	margin-top: 12px;
 }
