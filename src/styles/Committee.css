@@ -340,6 +340,20 @@ button {
 	background: rgba(255, 255, 255, 0.02);
 }
 
+.record-decision-btn {
+	/* Make Record Decision a prominent filled primary button with black text */
+	background: var(--primary-color);
+	color: #000 !important;
+	border: none;
+	padding: 6px 12px;
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.record-decision-btn:hover {
+	filter: brightness(0.95);
+}
+
 .close-voting-btn,
 .delete-motion-btn,
 .approve-motion-btn {
@@ -348,6 +362,7 @@ button {
 	padding: 6px 10px;
 	border-radius: 8px;
 	cursor: pointer;
+	color: var(--text);
 }
 
 .close-voting-btn:hover,
@@ -762,6 +777,11 @@ select {
 	justify-content: center;
 	align-items: center;
 	margin-top: 12px;
+	/* keep action buttons visible inside tall, scrollable modals */
+	position: sticky;
+	bottom: 12px;
+	z-index: 3;
+	background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.02) 100%);
 }
 
 .modal-cancel {

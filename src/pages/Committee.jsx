@@ -11,6 +11,7 @@ import {
     generateUniqueInviteCode,
     setMemberRole,
     updateCommitteeSettings,
+    recordDecision,
 } from '../firebase/committees';
 import CommitteeSettings from '../components/CommitteeSettings';
 import { db, auth } from '../firebase/firebase';
@@ -87,6 +88,15 @@ export default function Committee() {
     const [deleteTargetMotionId, setDeleteTargetMotionId] = useState(null);
     const [deleteTargetMotionName, setDeleteTargetMotionName] = useState('');
     const [settingsUpdatedAt, setSettingsUpdatedAt] = useState(0);
+    const [showRecordDecision, setShowRecordDecision] = useState(false);
+    const [recordDecisionMotion, setRecordDecisionMotion] = useState(null);
+    const [decisionForm, setDecisionForm] = useState({
+        summary: '',
+        pros: '',
+        cons: '',
+        recordingUrl: '',
+    });
+    const [recordingDecision, setRecordingDecision] = useState(false);
 
     useEffect(() => {
         setCommitteeName(getCommitteeName());
@@ -417,6 +427,49 @@ export default function Committee() {
         }
     }
 
+    function openRecordDecisionModal(motion) {
+        setRecordDecisionMotion(motion);
+        setShowRecordDecision(true);
+    }
+
+    function closeRecordDecisionModal() {
+        setShowRecordDecision(false);
+        setRecordDecisionMotion(null);
+        setDecisionForm({
+            summary: '',
+            pros: '',
+            cons: '',
+            recordingUrl: '',
+        });
+    }
+
+    async function handleRecordDecision() {
+        if (!recordDecisionMotion || !committeeObj?.id) return;
+
+        setRecordingDecision(true);
+        try {
+            await recordDecision(committeeObj.id, recordDecisionMotion.id, {
+                summary: decisionForm.summary,
+                pros: decisionForm.pros
+                    .split('\n')
+                    .map(p => p.trim())
+                    .filter(Boolean),
+                cons: decisionForm.cons
+                    .split('\n')
+                    .map(c => c.trim())
+                    .filter(Boolean),
+                recordingUrl: decisionForm.recordingUrl || null,
+            });
+            alert('Decision recorded successfully');
+            closeRecordDecisionModal();
+        } catch (err) {
+            console.error('recordDecision failed', err);
+            alert(err.message || 'Failed to record decision');
+        } finally {
+            setRecordingDecision(false);
+        }
+    }
+
     function performDelete() {
         // perform actual deletion of committee from Firestore
         (async () => {
@@ -608,6 +661,14 @@ export default function Committee() {
                                                         onClick={() => handleApproveMotion(motion.id)}
                                                     >
                                                         Approve
+                                                    </button>
+                                                )}
+                                                {(motion.status === 'completed' || motion.status === 'approved') && isOwnerOrChair && (
+                                                    <button
+                                                        className="record-decision-btn"
+                                                        onClick={() => openRecordDecisionModal(motion)}
+                                                    >
+                                                        Record Decision
                                                     </button>
                                                 )}
                                             </div>
@@ -1176,6 +1237,116 @@ export default function Committee() {
                             >
                                 Confirm
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showRecordDecision && recordDecisionMotion && (
+                <div
+                    className="modal-overlay"
+                    onClick={e => {
+                        if (
+                            typeof e.target.className === 'string' &&
+                            e.target.className.includes('modal-overlay')
+                        ) {
+                            closeRecordDecisionModal();
+                        }
+                    }}
+                >
+                    <div className="modal-content">
+                        <button
+                            className="modal-close"
+                            onClick={closeRecordDecisionModal}
+                        >
+                            &times;
+                        </button>
+                        <h2>Record Decision</h2>
+                        <p className="modal-sub">
+                            Document the decision for motion: {recordDecisionMotion.name}
+                        </p>
+                        <div className="decision-form">
+                            <div className="form-row">
+                                <label className="form-label">Summary</label>
+                                <textarea
+                                    value={decisionForm.summary}
+                                    onChange={e =>
+                                        setDecisionForm({
+                                            ...decisionForm,
+                                            summary: e.target.value,
+                                        })
+                                    }
+                                    placeholder="Brief summary of the decision"
+                                    rows={4}
+                                    className="form-textarea"
+                                />
+                            </div>
+
+                            <div className="form-row">
+                                <label className="form-label">Pros (one per line)</label>
+                                <textarea
+                                    value={decisionForm.pros}
+                                    onChange={e =>
+                                        setDecisionForm({
+                                            ...decisionForm,
+                                            pros: e.target.value,
+                                        })
+                                    }
+                                    placeholder="List pros of this decision"
+                                    rows={3}
+                                    className="form-textarea"
+                                />
+                            </div>
+
+                            <div className="form-row">
+                                <label className="form-label">Cons (one per line)</label>
+                                <textarea
+                                    value={decisionForm.cons}
+                                    onChange={e =>
+                                        setDecisionForm({
+                                            ...decisionForm,
+                                            cons: e.target.value,
+                                        })
+                                    }
+                                    placeholder="List cons of this decision"
+                                    rows={3}
+                                    className="form-textarea"
+                                />
+                            </div>
+
+                            <div className="form-row">
+                                <label className="form-label">Recording URL (optional)</label>
+                                <input
+                                    type="url"
+                                    value={decisionForm.recordingUrl}
+                                    onChange={e =>
+                                        setDecisionForm({
+                                            ...decisionForm,
+                                            recordingUrl: e.target.value,
+                                        })
+                                    }
+                                    placeholder="https://..."
+                                    className="form-input"
+                                />
+                            </div>
+
+                            <div className="form-actions">
+                                <button
+                                    type="button"
+                                    className="modal-create"
+                                    onClick={handleRecordDecision}
+                                    disabled={recordingDecision}
+                                >
+                                    {recordingDecision ? 'Recording...' : 'Record Decision'}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="modal-cancel"
+                                    onClick={closeRecordDecisionModal}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
