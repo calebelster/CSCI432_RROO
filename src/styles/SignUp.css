@@ -8,12 +8,12 @@
     align-items: center;
     padding: 40px 16px;
     /* breathing room */
-    background-color: lightblue;
+    background-color: var(--bg);
     font-family: 'KoPub Batang', Arial, sans-serif;
 }
 
 .box {
-    background-color: #5E6472;
+    background-color: var(--card);
     width: 400px;
     padding: 20px;
     border-radius: 10px;
@@ -22,13 +22,13 @@
 }
 
 h1 {
-    color: #FAF3CD;
+    color: var(--text);
     font-size: 22px;
     margin: 0;
 }
 
 p {
-    color: #FAF3CD;
+    color: var(--text);
     font-size: 14px;
     margin: 5px 0 20px;
 }
@@ -40,7 +40,7 @@ p {
 .form-group label {
     display: block;
     font-size: 12px;
-    color: #FAF3CD;
+    color: var(--text);
     margin-bottom: 5px;
 }
 
@@ -57,31 +57,31 @@ p {
     font-family: KoPub Batang, Arial, sans-serif;
     width: 100%;
     padding: 10px 12px;
-    background-color: black;
+    background-color: var(--primary-color);
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    color: white;
+    color: var(--primary-text-color);
     font-size: 14px;
 }
 
 .button p {
     font-family: KoPub Batang, Arial, sans-serif;
-    color: white;
+    color: var(--primary-text-color);
     font-size: 12px;
     text-align: center;
     margin-bottom: 3px;
 }
 
 h2 {
-    color: #FAF3CD;
+    color: var(--text);
     font-size: 12px;
     text-align: center;
     padding: 10px;
 }
 
 h2 a {
-    color: white;
+    color: var(--text);
     text-decoration: none;
 }
 
@@ -104,7 +104,7 @@ h2 a:hover {
 }
 
 .modal-content {
-    background-color: #FAF3DD;
+    background-color: var(--card);
     margin: auto;
     padding: 24px;
     border-radius: 10px;
@@ -116,19 +116,19 @@ h2 a:hover {
 }
 
 .modal-content h2 {
-    color: #333;
+    color: var(--text);
     font-size: 24px;
     margin-top: 0;
 }
 
 .modal-content p {
-    color: #555;
+    color: var(--text);
     font-size: 16px;
 }
 
 .modal-content button {
-    background-color: black;
-    color: white;
+    background-color: var(--primary-color);
+    color: var(--primary-text-color);
     padding: 10px 24px;
     border: none;
     border-radius: 5px;
@@ -141,7 +141,7 @@ h2 a:hover {
 
 /* small hint text used under inputs (matches label/font used elsewhere) */
 .hint {
-    color: #FAF3CD;
+    color: var(--text);
     font-size: 12px;
     margin-top: 6px;
 }

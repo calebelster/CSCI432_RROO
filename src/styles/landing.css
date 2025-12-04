@@ -1,0 +1,223 @@
+@import "//cdn.jsdelivr.net/npm/font-kopub@1.0";
+
+:root {
+    --border-radius: 10px;
+    --background: var(--bg);
+    --box-shadow: 2px 5px 10px rgba(0, 0, 0, 0.3);
+}
+
+body {
+    margin: 0;
+    font-family: 'KoPub Batang', Arial, sans-serif;
+    background: var(--background);
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--card);
+    color: var(--text);
+    padding: 0.5rem 2rem;
+    box-shadow: var(--box-shadow);
+}
+
+.navbar-left {
+    display: flex;
+    align-items: center;
+}
+
+.logo {
+    height: 40px;
+    margin-right: 10px;
+    filter: invert(1);
+}
+
+.site-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--text);
+}
+
+.navbar-right .nav-btn {
+    color: var(--primary-text-color);
+    background: var(--primary-color);
+    border: none;
+    padding: 0.5rem 1rem;
+    margin-left: 1rem;
+    text-decoration: none;
+    border-radius: var(--border-radius);
+    transition: background 0.2s;
+}
+
+.navbar-right .nav-btn:hover {
+    /* Keep nav buttons static on hover to avoid disappearing */
+    background: var(--primary-color);
+}
+
+.main-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 80px;
+    background: var(--card);
+    padding: 3rem 3rem 3rem 3rem;
+    /* top right bottom left */
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    max-width: 980px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.main-title {
+    font-size: 3.2rem;
+    margin: 0;
+    color: var(--text);
+}
+
+.main-desc {
+    font-size: 1.3rem;
+    margin-bottom: 2rem;
+    color: var(--text);
+    text-align: center;
+    max-width: 750px;
+}
+
+.main-buttons .main-btn {
+    color: var(--primary-text-color);
+    background: var(--primary-color);
+    border: none;
+    padding: 0.75rem 2rem;
+    margin: 0 1rem;
+    text-decoration: none;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    transition: background 0.2s;
+}
+
+.main-buttons .main-btn:hover {
+    /* Keep main buttons static on hover */
+    background: var(--primary-color);
+}
+
+.info-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    /* center items as a group */
+    gap: 2rem;
+    /* Make the info grid span ~75% of the viewport and center it */
+    width: 75vw;
+    max-width: 1280px;
+    margin: 2.5rem auto 0 auto;
+    padding: 0 1rem;
+    box-sizing: border-box;
+}
+
+.info-box {
+    flex: 1 1 300px;
+    /* allow boxes to wrap, prefer three across */
+    max-width: 460px;
+    /* limit width so three fit comfortably */
+    background: var(--card);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    padding: 2.5rem 2rem;
+    text-align: center;
+    font-size: 1.15rem;
+    color: var(--text);
+}
+
+.info-box .icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+}
+
+.info-title {
+    font-weight: 700;
+    margin-bottom: 8px;
+    font-size: 1.15rem;
+}
+
+.info-text {
+    font-size: 1rem;
+    color: rgba(0, 0, 0, 0.75);
+}
+
+.how-section {
+    margin: 3rem auto;
+    text-align: center;
+    max-width: 1000px;
+}
+
+.how-section h2 {
+    font-size: 1.15rem;
+    margin: 0 0 0.6rem 0;
+    color: var(--text);
+}
+
+.how-sub {
+    color: rgba(0, 0, 0, 0.6);
+    margin-bottom: 1.5rem;
+    font-size: 1.03rem;
+}
+
+.how-steps {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.how-step {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 1.5rem 1.25rem;
+    width: 240px;
+    box-shadow: var(--box-shadow);
+}
+
+.step-num {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #0b2b4a;
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.step-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.step-desc {
+    font-size: 0.9rem;
+    color: rgba(0, 0, 0, 0.65);
+}
+
+/* Large-screen layout: force fixed box width so exactly 3 boxes fit per top row */
+@media (min-width: 1200px) {
+    .info-box {
+        flex: 0 0 384px;
+        /* (1200px - 2*gap) / 3 ≈ 384px */
+        max-width: 384px;
+    }
+}
+
+/* Keep How It Works steps on a single centered row at wide viewports */
+@media (min-width: 1000px) {
+    .how-steps {
+        flex-wrap: nowrap;
+        gap: 2rem;
+    }
+
+    .how-step {
+        width: 260px;
+    }
+}

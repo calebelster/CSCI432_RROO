@@ -1,11 +1,11 @@
 // File: `src/Profile.jsx`
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './Profile.css';
-import { auth } from './firebase/firebase';
+import '../styles/Profile.css';
+import { auth } from '../firebase/firebase';
 import { updateProfile, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
-import { updateDisplayName } from './firebase/committees';
-import { doSignOut } from './firebase/auth';
+import { updateDisplayName } from '../firebase/committees';
+import { doSignOut } from '../firebase/auth';
 
 export default function Profile({ currentUser }) {
     const navigate = useNavigate();
@@ -18,15 +18,7 @@ export default function Profile({ currentUser }) {
 
     useEffect(() => {
         if (currentUser) setName(currentUser.displayName || currentUser.email || '');
-        else {
-            try {
-                const raw = localStorage.getItem('homeData');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    if (parsed && parsed.profile && parsed.profile.name) setName(parsed.profile.name);
-                }
-            } catch (e) {}
-        }
+        else setName('');
     }, [currentUser]);
 
     async function handleSave(e) {
@@ -43,18 +35,11 @@ export default function Profile({ currentUser }) {
                 }
             }
 
-            try {
-                const raw = localStorage.getItem('homeData');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    parsed.profile = parsed.profile || {};
-                    parsed.profile.name = name;
-                    localStorage.setItem('homeData', JSON.stringify(parsed));
-                }
-            } catch (e) {}
+            // No localStorage persistence — profile changes are mirrored to Firestore via updateDisplayName
 
             setStatus('Saved');
             setTimeout(() => setStatus(''), 1600);
+            setName(name); // Explicitly update local state after successful save
         } catch (err) {
             setStatus('Failed to save');
             console.error(err);
@@ -79,7 +64,7 @@ export default function Profile({ currentUser }) {
                 await reauthenticateWithCredential(auth.currentUser, cred);
             }
             // Use modular helper to update password
-            const { doPasswordChange } = await import('./firebase/auth');
+            const { doPasswordChange } = await import('../firebase/auth');
             await doPasswordChange(newPassword);
             setPwStatus('Password updated');
             setCurrentPassword('');

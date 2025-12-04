@@ -37,7 +37,7 @@ button {
 	align-items: center;
 	justify-content: space-between;
 	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.07);
-	border: 1px solid rgba(255, 255, 255, 0.06);
+	border: 1px solid var(--border-color);
 }
 
 .committee-header-bar h1 {
@@ -63,7 +63,7 @@ button {
 .back-btn {
 	background: transparent;
 	color: var(--text);
-	border: 1px solid rgba(255, 255, 255, 0.08);
+	border: 1px solid var(--border-color);
 	border-radius: 8px;
 	padding: 7px 14px;
 	font-size: 1rem;
@@ -71,8 +71,26 @@ button {
 }
 
 .new-motion-btn {
-	background: #000;
-	color: #fff;
+	background: var(--primary-color);
+	color: var(--primary-text-color);
+	border: none;
+	border-radius: 8px;
+	padding: 8px 12px;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin-left: 6px;
+	font-family: var(--font);
+}
+
+.new-motion-btn .plus {
+	font-weight: 700
+}
+
+.invite-btn {
+	background: var(--primary-color);
+	color: var(--primary-text-color);
 	border: none;
 	border-radius: 8px;
 	padding: 8px 12px;
@@ -81,10 +99,6 @@ button {
 	align-items: center;
 	gap: 8px;
 	font-family: var(--font);
-}
-
-.new-motion-btn .plus {
-	font-weight: 700
 }
 
 .tab-bar {
@@ -97,7 +111,7 @@ button {
 	background: var(--card);
 	padding: 6px;
 	border-radius: 999px;
-	border: 1px solid rgba(255, 255, 255, 0.04);
+	border: 1px solid var(--border-color);
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 	width: fit-content;
 	box-sizing: border-box;
@@ -121,8 +135,8 @@ button {
 
 .tab.active {
 	/* inner pill for the selected option */
-	background: rgba(255, 255, 255, 0.95);
-	color: #111;
+	background: var(--primary-color);
+	color: var(--primary-text-color);
 	font-weight: 700;
 	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
@@ -137,21 +151,22 @@ button {
 .members-header {
 	font-size: 1.5rem;
 	font-weight: 700;
-	margin-bottom: 12px;
-	color: var(--text)
+	margin-bottom: 10px;
+	color: var(--text);
+	padding-left: 0;
 }
 
 .motion-filters {
 	/* Use a pill track like the main tab-bar but left-aligned within the motions area */
 	display: inline-flex;
 	gap: 8px;
-	margin: 12px 0 14px 0;
+	margin: 0 0 14px 0;
 	justify-content: flex-start;
 	align-items: center;
 	background: var(--card);
 	padding: 6px;
 	border-radius: 999px;
-	border: 1px solid rgba(255, 255, 255, 0.04);
+	border: 1px solid var(--border-color);
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 	width: fit-content;
 	box-sizing: border-box;
@@ -176,15 +191,15 @@ button {
 
 .filter-btn.active {
 	/* inner pill for the selected option */
-	background: rgba(255, 255, 255, 0.95);
-	color: #111;
+	background: var(--primary-color);
+	color: var(--primary-text-color);
 	font-weight: 700;
 	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
 .motion-card {
 	background: var(--card);
-	border: 1px solid rgba(255, 255, 255, 0.06);
+	border: 1px solid var(--border-color);
 	border-radius: 12px;
 	padding: 16px;
 	margin-bottom: 12px;
@@ -192,15 +207,153 @@ button {
 	box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
 }
 
-.motion-card h3 {
+.motion-card {
+	position: relative;
+}
+
+.motion-card-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.motion-title {
 	margin: 0 0 8px 0;
-	font-size: 1.1rem;
+	font-size: 1.2rem;
+	font-weight: 700;
+	color: var(--text);
+}
+
+.motion-card-title-wrap {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.motion-badge {
+	background: #08112b;
+	color: #fff;
+	padding: 6px 10px;
+	border-radius: 999px;
+	font-size: 0.8rem;
+	font-weight: 700;
 }
 
 .motion-desc {
 	margin: 8px 0;
 	color: var(--text);
 	opacity: 0.95
+}
+
+.motion-card-actions-top {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.motion-card-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 12px;
+}
+
+.motion-meta .creator {
+	margin-right: 8px;
+	font-weight: 600;
+}
+
+.motion-meta .date {
+	color: var(--text);
+	opacity: 0.8;
+	margin-left: 6px;
+}
+
+.motion-card-footer-right {
+	display: flex;
+	align-items: center;
+}
+
+.motion-avatar {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.06);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 700;
+	margin-right: 10px;
+}
+
+.motion-meta-text .creator {
+	font-weight: 700;
+}
+
+.motion-meta-text .date {
+	font-size: 0.9rem;
+	color: var(--text);
+	opacity: 0.7;
+}
+
+/* Place creator and date on one line, with a small gap */
+.motion-meta-text {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+/* Row used in motion list cards to align creator on left and created date on the right */
+.motion-meta-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.motion-meta-right .date,
+.motion-meta-row .date {
+	color: var(--text);
+	opacity: 0.85;
+	font-size: 0.95rem;
+}
+
+/* On small screens, stack them vertically for readability */
+@media (max-width: 420px) {
+	.motion-meta-text {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 4px;
+	}
+}
+
+.view-details-btn {
+	background: transparent;
+	border: 1px solid var(--border-color);
+	padding: 8px 14px;
+	border-radius: 10px;
+	cursor: pointer;
+}
+
+.view-details-btn:hover {
+	background: rgba(255, 255, 255, 0.02);
+}
+
+.close-voting-btn,
+.delete-motion-btn,
+.approve-motion-btn {
+	background: transparent;
+	border: 1px solid var(--border-color);
+	padding: 6px 10px;
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.close-voting-btn:hover,
+.delete-motion-btn:hover,
+.approve-motion-btn:hover {
+	background: rgba(255, 255, 255, 0.02);
 }
 
 .motion-meta .creator {
@@ -211,8 +364,8 @@ button {
 
 .view-details-btn,
 .motion-card-footer .view-details-btn {
-	background: #000;
-	color: #fff;
+	background: var(--primary-color);
+	color: var(--primary-text-color);
 	border: none;
 	border-radius: 8px;
 	padding: 6px 12px;
@@ -233,50 +386,161 @@ button {
 	color: var(--text);
 }
 
-
 .members-table th {
 	font-weight: 700
 }
 
 .members-table tr:not(:last-child) {
-	border-bottom: 1px solid rgba(255, 255, 255, 0.04)
+	border-bottom: 1px solid var(--border-color)
+}
+
+/* Members list: display members as individual cards */
+.members-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin-top: 12px;
+}
+
+.member-card {
+	background: var(--card);
+	border: 1px solid var(--border-color);
+	border-radius: 12px;
+	padding: 16px;
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.member-card-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	width: 100%;
+}
+
+.member-role-selector {
+	display: flex;
+	align-items: center;
+}
+
+.member-role-selector select {
+	padding: 6px 12px;
+	border: 1px solid var(--border-color);
+	border-radius: 8px;
+	background: var(--card);
+	color: var(--text);
+	font-family: var(--font);
+	cursor: pointer;
+	font-size: 0.95rem;
+}
+
+.member-role-badge {
+	display: inline-block;
+	background: #08112b;
+	color: #fff;
+	padding: 4px 8px;
+	border-radius: 999px;
+	font-size: 0.8rem;
+	font-weight: 700;
+	margin-left: 8px;
 }
 
 /* Members card: white rounded card with centered columns like the reference image */
 .members-card {
-	background: var(--card);
-	border-radius: 10px;
-	box-shadow: 0 8px 20px rgba(2,6,23,0.06);
-	padding: 6px 12px;
-	margin-top: 12px;
-}
-
-.members-table {
-	background: transparent;
-}
-
-.members-table thead th {
-	text-align: center;
-	color: var(--text);
-	padding: 18px 24px;
-	font-size: 1.05rem;
-}
-
-.members-table tbody td {
-	text-align: center;
-	padding: 20px 24px;
-	font-size: 1.03rem;
-	color: var(--text);
-}
-
-.members-table tbody tr {
-	background: transparent;
+	/* deprecated - using members-list with individual member-card items instead */
+	display: none;
 }
 
 .members-header {
 	margin-bottom: 8px;
 	font-size: 1.6rem;
 	color: var(--text);
+}
+
+/* Members list item layout */
+.member-item {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.member-avatar img,
+.avatar-initials {
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 700;
+	color: #fff;
+	background: #dfeeff;
+	flex-shrink: 0;
+}
+
+.avatar-initials {
+	background: #dfeeff;
+	color: #173b6d;
+}
+
+.member-info {
+	text-align: left;
+	flex: 1;
+}
+
+.member-main {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.member-name-text {
+	font-weight: 700;
+	font-size: 1.1rem;
+	color: var(--text);
+}
+
+.member-email {
+	margin-top: 4px;
+	margin-bottom: 4px;
+	font-size: 0.95rem;
+	color: var(--text);
+	opacity: 0.8;
+}
+
+.member-joined {
+	font-size: 0.9rem;
+	color: var(--text);
+	opacity: 0.7;
+}
+
+.member-sub {
+	margin-top: 4px;
+	font-size: 0.9rem;
+	color: var(--text);
+	opacity: 0.8;
+}
+
+.position-badge {
+	display: inline-block;
+	margin-top: 6px;
+	padding: 6px 12px;
+	border-radius: 999px;
+	background: #0b2b4a;
+	color: #fff;
+	font-weight: 700;
+	font-size: 0.9rem;
+}
+
+/* Ensure member rows left-align content for the more card-like layout */
+.members-table thead th,
+.members-table tbody td {
+	text-align: left;
 }
 
 /* Modals use the same modal styles as homepage but adapted for card color */
@@ -297,9 +561,9 @@ button {
 .modal-content {
 	/* slightly larger, more airy modal like the reference -- keep theme colors */
 	/* background: var(--card); */
-	background: white;
+	background: var(--card);
 	/* color: var(--text); */
-	color: black;
+	color: var(--text);
 	border-radius: 12px;
 	max-width: 640px;
 	/* slightly smaller so modal covers less space */
@@ -330,13 +594,13 @@ button {
 }
 
 .modal-sub {
-	color: #000;
+	color: var(--text);
 	opacity: 0.88;
 	margin-bottom: 16px;
 }
 
 .form-label {
-	color: #000;
+	color: var(--text);
 	display: block;
 	margin-bottom: 8px;
 	font-weight: 700;
@@ -348,9 +612,9 @@ button {
 	width: 100%;
 	padding: 12px 14px;
 	border-radius: 10px;
-	border: 1px solid rgba(0, 0, 0, 0.06);
-	background: rgba(255, 255, 255, 0.04);
-	color: #000;
+	border: 1px solid var(--border-color);
+	background: var(--bg);
+	color: var(--text);
 	font-family: var(--font);
 	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
@@ -372,7 +636,7 @@ button {
 }
 
 .form-label-inline {
-	color: #000;
+	color: var(--text);
 	/* keep label bold like other form labels */
 	font-weight: 700;
 	display: inline-block;
@@ -447,10 +711,10 @@ button {
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background: rgba(0, 0, 0, 0.06);
+	background: #ccc;
 	transition: background-color 160ms ease, border-color 160ms ease;
 	border-radius: 999px;
-	border: 1px solid rgba(0, 0, 0, 0.06);
+	border: 1px solid var(--border-color);
 }
 
 .switch-slider::before {
@@ -473,9 +737,9 @@ select {
 }
 
 .switch input:checked+.switch-slider {
-	background: #07122a;
+	background: var(--primary-color);
 	/* match modal-create / brand dark */
-	border-color: rgba(0, 0, 0, 0.12);
+	border-color: var(--primary-color);
 }
 
 .switch input:checked+.switch-slider::before {
@@ -502,15 +766,15 @@ select {
 
 .modal-cancel {
 	background: transparent;
-	border: 1px solid rgba(0, 0, 0, 0.06);
-	color: #000;
+	border: 1px solid var(--border-color);
+	color: var(--text);
 	padding: 10px 14px;
 	border-radius: 10px;
 }
 
 .modal-create {
-	background: #07122a;
-	color: #fff;
+	background: var(--primary-color);
+	color: var(--primary-text-color);
 	border: none;
 	padding: 10px 16px;
 	border-radius: 10px;
@@ -518,6 +782,16 @@ select {
 }
 
 /* committee settings block inside modal */
+.settings-section {
+	max-width: 600px;
+	margin: 20px auto 0 auto;
+	padding: 20px;
+	background: var(--card);
+	border: 1px solid var(--border-color);
+	border-radius: 12px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
 .committee-settings {
 	margin-top: 12px;
 }
@@ -531,8 +805,8 @@ select {
 }
 
 .settings-list {
-	background: rgba(255, 255, 255, 0.02);
-	border: 1px solid rgba(0, 0, 0, 0.04);
+	background: var(--bg);
+	border: 1px solid var(--border-color);
 	padding: 14px;
 	border-radius: 10px;
 }
@@ -546,13 +820,13 @@ select {
 }
 
 .settings-list .setting-name {
-	color: #000;
+	color: var(--text);
 	font-weight: 600;
 	text-align: left;
 }
 
 .settings-list .setting-val {
-	color: #000;
+	color: var(--text);
 	float: none;
 	text-align: right;
 	font-weight: 500;
@@ -592,7 +866,7 @@ select {
 .invite-box input {
 	padding: 8px;
 	border-radius: 6px;
-	border: 1px solid rgba(255, 255, 255, 0.06);
+	border: 1px solid var(--border-color);
 	background: transparent;
 	color: var(--text)
 }
@@ -601,8 +875,8 @@ select {
 	padding: 8px 12px;
 	border-radius: 6px;
 	border: none;
-	background: #000;
-	color: #fff
+	background: var(--primary-color);
+	color: var(--primary-text-color)
 }
 
 .more-btn {
@@ -650,7 +924,7 @@ select {
 
 .confirm-cancel {
 	background: transparent;
-	border: 1px solid rgba(255, 255, 255, 0.06);
+	border: 1px solid var(--border-color);
 	color: var(--text);
 	padding: 8px 12px;
 	border-radius: 8px
@@ -678,4 +952,142 @@ select {
 	.members-section {
 		padding: 0 12px
 	}
+}
+
+/* Decision-related styles */
+.decisions-section {
+	padding: 16px;
+}
+
+.decisions-header {
+	font-size: 18px;
+	font-weight: 600;
+	margin-bottom: 16px;
+	color: var(--color-text);
+}
+
+.decisions-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.no-decisions {
+	padding: 24px;
+	text-align: center;
+	color: var(--color-text-secondary);
+	background: var(--color-secondary);
+	border-radius: 8px;
+}
+
+.decision-card {
+	border: 1px solid var(--color-border);
+	border-radius: 8px;
+	padding: 16px;
+	background: var(--color-surface);
+	transition: box-shadow 0.2s ease;
+}
+
+.decision-card:hover {
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.decision-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	margin-bottom: 8px;
+}
+
+.decision-header h3 {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--color-text);
+}
+
+.decision-date {
+	font-size: 12px;
+	color: var(--color-text-secondary);
+}
+
+.decision-meta {
+	font-size: 12px;
+	color: var(--color-text-secondary);
+	margin-bottom: 12px;
+}
+
+.decision-summary,
+.decision-pros,
+.decision-cons,
+.decision-discussion {
+	margin-bottom: 12px;
+	font-size: 14px;
+}
+
+.decision-summary strong,
+.decision-pros strong,
+.decision-cons strong,
+.decision-discussion strong {
+	display: block;
+	margin-bottom: 6px;
+	color: var(--color-text);
+}
+
+.decision-summary p {
+	margin: 0;
+	line-height: 1.5;
+	color: var(--color-text);
+}
+
+.decision-pros ul,
+.decision-cons ul {
+	margin: 0;
+	padding-left: 20px;
+	list-style: disc;
+}
+
+.decision-pros li,
+.decision-cons li {
+	color: var(--color-text);
+	margin-bottom: 4px;
+}
+
+.decision-recording {
+	margin-top: 12px;
+}
+
+.decision-recording a {
+	display: inline-block;
+	padding: 8px 12px;
+	background: var(--color-primary);
+	color: white;
+	border-radius: 4px;
+	text-decoration: none;
+	font-size: 12px;
+	font-weight: 500;
+	transition: background 0.2s ease;
+}
+
+.decision-recording a:hover {
+	background: var(--color-primary-hover);
+}
+
+/* Motion type badges */
+.motion-badge.special {
+	background: rgba(255, 152, 0, 0.2);
+	color: #ff9800;
+	border: 1px solid rgba(255, 152, 0, 0.5);
+}
+
+.motion-badge.sub {
+	background: rgba(33, 150, 243, 0.2);
+	color: #2196f3;
+	border: 1px solid rgba(33, 150, 243, 0.5);
+}
+
+.motion-badge.overturn {
+	background: rgba(244, 67, 54, 0.2);
+	color: #f44336;
+	border: 1px solid rgba(244, 67, 54, 0.5);
 }

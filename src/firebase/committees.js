@@ -1,169 +1,518 @@
 // File: src/firebase/committees.js
+
 import { db, auth } from './firebase';
 import { updateProfile } from 'firebase/auth';
 import {
-    collection, doc, setDoc, addDoc, updateDoc, serverTimestamp,
-    getDoc, getDocs, runTransaction, query, where
+    collection,
+    doc,
+    setDoc,
+    addDoc,
+    updateDoc,
+    serverTimestamp,
+    deleteDoc,
+    getDoc,
+    getDocs,
+    runTransaction,
+    query,
+    where,
 } from 'firebase/firestore';
 
-/* Create a committee and add the creator as owner */
-export async function createCommittee({ name, description, settings = {} }) {
-    if (!auth.currentUser) throw new Error('Not signed in');
-    const committeeRef = doc(collection(db, 'committees'));
-    await setDoc(committeeRef, {
-        name,
-        description,
-        ownerUid: auth.currentUser.uid,
-        settings,
-        createdAt: serverTimestamp()
-    });
-    // add member document for owner - include uid field so collectionGroup queries can find members by uid
-    await setDoc(doc(db, 'committees', committeeRef.id, 'members', auth.currentUser.uid), {
-        uid: auth.currentUser.uid,
-        role: 'owner',
-        addedAt: serverTimestamp()
-    });
-    return committeeRef.id;
-}
-
-/* Add a user to a committee (chair/owner only UI should call this) */
-export async function addMemberToCommittee(committeeId, userUid, role = 'member') {
+// Add a user to a committee (chair/owner only)
+export async function addMemberToCommittee(
+    committeeId,
+    userUid,
+    role = 'member'
+) {
     if (!auth.currentUser) throw new Error('Not signed in');
     const memberRef = doc(db, 'committees', committeeId, 'members', userUid);
-    await setDoc(memberRef, {
-        uid: userUid,
-        role,
-        addedBy: auth.currentUser.uid,
-        addedAt: serverTimestamp()
-    }, { merge: true });
+    await setDoc(
+        memberRef,
+        {
+            uid: userUid,
+            role,
+            addedBy: auth.currentUser.uid,
+            addedAt: serverTimestamp(),
+        },
+        { merge: true }
+    );
 }
 
-/* Change a user's role inside a committee */
+// Change a user's role inside a committee
 export async function setMemberRole(committeeId, userUid, role) {
+    const committeeRef = doc(db, 'committees', committeeId);
     const memberRef = doc(db, 'committees', committeeId, 'members', userUid);
-    await updateDoc(memberRef, { role });
-}
 
-/* Create a motion in a committee */
-export async function createMotion(committeeId, motion) {
-    // motion: { title, description, type, threshold, anonymousVotes (bool), secondRequired, discussionStyle, ... }
-    if (!auth.currentUser) throw new Error('Not signed in');
-    const motionsCol = collection(db, 'committees', committeeId, 'motions');
-    const docRef = await addDoc(motionsCol, {
-        ...motion,
-        creatorUid: auth.currentUser.uid,
-        status: 'active',
-        tally: { yes: 0, no: 0, abstain: 0 },
-        createdAt: serverTimestamp()
+    return runTransaction(db, async tx => {
+        // Read committee and (if present) previous owner member doc first
+        const committeeSnap = await tx.get(committeeRef);
+        if (!committeeSnap.exists()) throw new Error('Committee not found');
+
+        const committeeData = committeeSnap.data();
+        const prevOwnerUid = committeeData.ownerUid;
+
+        // Prevent demoting the current owner to a non-owner role without assigning a new owner
+        // If caller is trying to change the role of the current owner to something else (not 'owner'),
+        // disallow — this avoids leaving a committee with no owner.
+        if (prevOwnerUid && userUid === prevOwnerUid && role !== 'owner') {
+            throw new Error('Cannot demote the committee owner without assigning a new owner first');
+        }
+
+        let prevOwnerMemberRef = null;
+        let prevOwnerSnap = null;
+        if (prevOwnerUid) {
+            prevOwnerMemberRef = doc(db, 'committees', committeeId, 'members', prevOwnerUid);
+            try {
+                prevOwnerSnap = await tx.get(prevOwnerMemberRef);
+            } catch (e) {
+                prevOwnerSnap = null;
+            }
+        }
+
+        // All reads are done — now perform writes. Use tx.set with merge to avoid failures
+        tx.set(memberRef, { role }, { merge: true });
+
+        // If assigning a new owner, update the committee ownerUid and demote previous owner
+        if (role === 'owner' && prevOwnerUid !== userUid) {
+            tx.update(committeeRef, { ownerUid: userUid });
+
+            if (prevOwnerSnap && prevOwnerSnap.exists()) {
+                tx.update(prevOwnerMemberRef, { role: 'member' });
+            }
+        }
     });
-    return docRef.id;
 }
 
-/* Reply to motion (discussion) */
-export async function replyToMotion(committeeId, motionId, { text, stance = 'neutral' }) {
+// Reply to motion (discussion)
+export async function replyToMotion(
+    committeeId,
+    motionId,
+    { text, stance = 'neutral' }
+) {
     if (!auth.currentUser) throw new Error('Not signed in');
-    const repliesCol = collection(db, 'committees', committeeId, 'motions', motionId, 'replies');
+    const repliesCol = collection(
+        db,
+        'committees',
+        committeeId,
+        'motions',
+        motionId,
+        'replies'
+    );
     await addDoc(repliesCol, {
         authorUid: auth.currentUser.uid,
+        authorDisplayName: auth.currentUser.displayName,
         text,
         stance,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
     });
 }
 
-/* Cast a vote - transaction ensures single vote per user but allows changing that vote */
-export async function castVote(committeeId, motionId, { choice, anonymous = false }) {
+// Cast a vote with optional anonymous flag
+export async function castVote(
+    committeeId,
+    motionId,
+    { choice, anonymous = false }
+) {
     if (!auth.currentUser) throw new Error('Not signed in');
-    const voteRef = doc(db, 'committees', committeeId, 'motions', motionId, 'votes', auth.currentUser.uid);
+
+
+
+    const voteRef = doc(
+        db,
+        'committees',
+        committeeId,
+        'motions',
+        motionId,
+        'votes',
+        auth.currentUser.uid
+    );
     const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
 
-    // Transaction: create or update the user's vote and adjust tallies accordingly.
-    return runTransaction(db, async (tx) => {
+    return runTransaction(db, async tx => {
         const motionSnap = await tx.get(motionRef);
         if (!motionSnap.exists()) throw new Error('Motion not found');
+
         const motionData = motionSnap.data();
         const counts = { ...(motionData.tally || { yes: 0, no: 0, abstain: 0 }) };
 
         const existingSnap = await tx.get(voteRef);
+
         if (existingSnap.exists()) {
             const prevChoice = existingSnap.data().choice;
+
             if (prevChoice === choice) {
-                // No-op (same selection) but return current counts
                 return counts;
             }
-            // decrement previous
+
+            // Decrement previous
             if (prevChoice === 'yes') counts.yes = Math.max(0, (counts.yes || 0) - 1);
-            else if (prevChoice === 'no') counts.no = Math.max(0, (counts.no || 0) - 1);
+            else if (prevChoice === 'no')
+                counts.no = Math.max(0, (counts.no || 0) - 1);
             else counts.abstain = Math.max(0, (counts.abstain || 0) - 1);
 
-            // increment new
+            // Increment new
             if (choice === 'yes') counts.yes = (counts.yes || 0) + 1;
             else if (choice === 'no') counts.no = (counts.no || 0) + 1;
             else counts.abstain = (counts.abstain || 0) + 1;
 
             tx.update(voteRef, {
                 voterUid: auth.currentUser.uid,
+                voterDisplayName: anonymous
+                    ? null
+                    : auth.currentUser.displayName ||
+                    auth.currentUser.email ||
+                    auth.currentUser.uid,
                 choice,
                 anonymous,
-                updatedAt: serverTimestamp()
+                updatedAt: serverTimestamp(),
             });
+
             tx.update(motionRef, { tally: counts });
             return counts;
         } else {
-            // First time vote: set vote and update tallies
+            // First time vote
             if (choice === 'yes') counts.yes = (counts.yes || 0) + 1;
             else if (choice === 'no') counts.no = (counts.no || 0) + 1;
             else counts.abstain = (counts.abstain || 0) + 1;
 
             tx.set(voteRef, {
                 voterUid: auth.currentUser.uid,
+                voterDisplayName: anonymous
+                    ? null
+                    : auth.currentUser.displayName ||
+                    auth.currentUser.email ||
+                    auth.currentUser.uid,
                 choice,
                 anonymous,
-                createdAt: serverTimestamp()
+                createdAt: serverTimestamp(),
             });
+
             tx.update(motionRef, { tally: counts });
             return counts;
         }
     });
 }
 
-/* Record final decision + optional recording URL and summary (chair/owner) */
-export async function recordDecision(committeeId, motionId, { summary, recordingUrl = null }) {
+// Record a final decision with summary, pros, cons, and discussion snapshot
+export async function recordDecision(
+    committeeId,
+    motionId,
+    { summary = '', pros = [], cons = [], recordingUrl = null }
+) {
     if (!auth.currentUser) throw new Error('Not signed in');
-    const decisionRef = doc(collection(db, 'committees', committeeId, 'decisions'));
-    await setDoc(decisionRef, {
+
+    // Fetch all replies to snapshot discussion
+    const repliesCol = collection(
+        db,
+        'committees',
+        committeeId,
+        'motions',
+        motionId,
+        'replies'
+    );
+    const repliesSnap = await getDocs(repliesCol);
+    const discussionSnapshot = repliesSnap.docs.map(doc => ({
+        ...doc.data(),
+        createdAt: doc.data().createdAt
+            ? doc.data().createdAt.toDate
+                ? doc.data().createdAt.toDate().toISOString()
+                : String(doc.data().createdAt)
+            : null,
+    }));
+
+    // Create decision doc
+    const decisionsCol = collection(db, 'committees', committeeId, 'decisions');
+    const decisionRef = await addDoc(decisionsCol, {
         motionId,
         summary,
+        pros: Array.isArray(pros) ? pros : (pros || '').split('\n').filter(Boolean),
+        cons: Array.isArray(cons) ? cons : (cons || '').split('\n').filter(Boolean),
+        discussionSnapshot,
         recordingUrl,
         recordedBy: auth.currentUser.uid,
-        createdAt: serverTimestamp()
+        recordedByName:
+            auth.currentUser.displayName || auth.currentUser.email || '',
+        createdAt: serverTimestamp(),
     });
-    // mark motion as decided
-    await updateDoc(doc(db, 'committees', committeeId, 'motions', motionId), { status: 'decided', decidedAt: serverTimestamp() });
+
+    // Mark motion as decided
+    await updateDoc(doc(db, 'committees', committeeId, 'motions', motionId), {
+        status: 'decided',
+        decidedAt: serverTimestamp(),
+        decisionId: decisionRef.id,
+    });
+
+    return decisionRef.id;
 }
 
-/* Propose an overturn motion: client enforces only a user who voted 'yes' can create - verify via votes collection */
-export async function proposeOverturn(committeeId, originalMotionId, { title, description }) {
+// Propose an overturn motion (only for users who voted 'yes' on original)
+export async function proposeOverturn(
+    committeeId,
+    originalMotionId,
+    { title, description }
+) {
     if (!auth.currentUser) throw new Error('Not signed in');
-    const myVoteRef = doc(db, 'committees', committeeId, 'motions', originalMotionId, 'votes', auth.currentUser.uid);
+
+    const myVoteRef = doc(
+        db,
+        'committees',
+        committeeId,
+        'motions',
+        originalMotionId,
+        'votes',
+        auth.currentUser.uid
+    );
     const myVoteSnap = await getDoc(myVoteRef);
+
     if (!myVoteSnap.exists() || myVoteSnap.data().choice !== 'yes') {
         throw new Error('Only members who voted in favor can propose to overturn');
     }
-    // create a special motion referencing original
-    return createMotion(committeeId, { title, description, type: 'overturn', relatedTo: originalMotionId });
+
+    return createMotion(committeeId, {
+        title,
+        description,
+        kind: 'overturn',
+        relatedTo: originalMotionId,
+        requiresDiscussion: true,
+        type: 'Overturn Motion',
+    });
 }
 
-/* Utility: change user display name (also write to users collection for quick access) */
+// Deny a motion (owner/chair only)
+export async function denyMotion(committeeId, motionId) {
+    if (!auth.currentUser) throw new Error('Not signed in');
+
+    const committeeRef = doc(db, 'committees', committeeId);
+    const committeeSnap = await getDoc(committeeRef);
+    const committeeData = committeeSnap.data();
+    const ownerUid = committeeData.ownerUid;
+
+    // Check if current user is owner or chair
+    const memberRef = doc(
+        db,
+        'committees',
+        committeeId,
+        'members',
+        auth.currentUser.uid
+    );
+    const memberSnap = await getDoc(memberRef);
+    if (
+        !memberSnap.exists() ||
+        !['owner', 'chair'].includes(memberSnap.data().role)
+    ) {
+        throw new Error('Not authorized to deny this motion');
+    }
+
+    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
+    await updateDoc(motionRef, {
+        status: 'denied',
+        deniedAt: serverTimestamp(),
+    });
+
+    return true;
+}
+
+// Utility: update display name
 export async function updateDisplayName(newName) {
     if (!auth.currentUser) throw new Error('Not signed in');
-    // Firebase Auth update (modular SDK)
+
     await updateProfile(auth.currentUser, { displayName: newName });
-    // Ensure local user reflects changes immediately
-    try { await auth.currentUser.reload?.(); } catch {}
-    // Mirror into Firestore users doc
-    await setDoc(doc(db, 'users', auth.currentUser.uid), {
-        displayName: newName,
-        updatedAt: serverTimestamp()
-    }, { merge: true });
+
+    try {
+        await auth.currentUser.reload?.();
+    } catch {}
+
+    await setDoc(
+        doc(db, 'users', auth.currentUser.uid),
+        {
+            displayName: newName,
+            updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+    );
+}
+
+/**
+ * Create a new committee and add the current user as owner member.
+ */
+export async function createCommittee({ name, description, settings = {} }) {
+    const user = auth.currentUser;
+    if (!user || !user.uid) {
+        throw new Error('Not signed in');
+    }
+
+    const committeesCol = collection(db, 'committees');
+    const committeeRef = await addDoc(committeesCol, {
+        name,
+        description,
+        ownerUid: user.uid,
+        settings,
+        createdAt: serverTimestamp(),
+        inviteCode: null,
+    });
+
+    const committeeId = committeeRef.id;
+
+    const ownerDisplayName = user.displayName || user.email || '';
+    const ownerEmail = user.email || '';
+
+    await setDoc(
+        doc(db, 'committees', committeeId, 'members', user.uid),
+        {
+            uid: user.uid,
+            role: 'owner',
+            displayName: ownerDisplayName,
+            email: ownerEmail,
+            joinedAt: serverTimestamp(),
+        },
+        { merge: true }
+    );
+
+    return committeeId;
+}
+
+/**
+ * Generate a unique 6-character invite code.
+ */
+function randomInviteCode() {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let code = '';
+    for (let i = 0; i < 6; i += 1) {
+        code += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+    }
+    return code;
+}
+
+export async function generateUniqueInviteCode(committeeId) {
+    let code = '';
+    let unique = false;
+
+    for (let i = 0; i < 10 && !unique; i += 1) {
+        code = randomInviteCode();
+        const q = query(
+            collection(db, 'committees'),
+            where('inviteCode', '==', code)
+        );
+        const snap = await getDocs(q);
+        unique = snap.empty;
+    }
+
+    if (!unique) {
+        throw new Error('Could not generate unique invite code.');
+    }
+
+    const ref = doc(db, 'committees', committeeId);
+    await updateDoc(ref, { inviteCode: code });
+    return code;
+}
+
+/**
+ * Update committee settings (partial). Only owner/chair should call this from client.
+ * This function writes fields under `settings.<key>` to avoid overwriting other settings.
+ */
+export async function updateCommitteeSettings(committeeId, updates = {}) {
+    if (!auth.currentUser) throw new Error('Not signed in');
+    if (!committeeId) throw new Error('No committeeId provided');
+
+    const ref = doc(db, 'committees', committeeId);
+    const payload = {};
+    Object.keys(updates || {}).forEach(k => {
+        payload[`settings.${k}`] = updates[k];
+    });
+    payload.updatedAt = serverTimestamp();
+
+    await updateDoc(ref, payload);
+    return true;
+}
+
+/**
+ * Join a committee by code.
+ */
+export async function joinCommitteeByCode(rawCode) {
+    const code = rawCode.trim().toUpperCase();
+    if (!code) throw new Error('No code provided');
+
+    const user = auth.currentUser;
+    if (!user || !user.uid) throw new Error('Not signed in');
+
+    const q = query(
+        collection(db, 'committees'),
+        where('inviteCode', '==', code)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) {
+        throw new Error('Invalid or expired code.');
+    }
+
+    const committeeDoc = snap.docs[0];
+    const committeeId = committeeDoc.id;
+    const data = committeeDoc.data();
+
+    const memberRef = doc(db, 'committees', committeeId, 'members', user.uid);
+    await setDoc(
+        memberRef,
+        {
+            uid: user.uid,
+            role: 'member',
+            displayName: user.displayName || user.email || '',
+            email: user.email || '',
+            joinedAt: serverTimestamp(),
+        },
+        { merge: true }
+    );
+
+    return { committeeId, committeeName: data.name || '' };
+}
+
+/**
+ * Create a motion with support for kind (standard/overturn/sub/special).
+ */
+export async function createMotion(committeeId, motionPayload) {
+    const user = auth.currentUser;
+    if (!user || !user.uid) {
+        throw new Error('Not signed in');
+    }
+
+    const motionsCol = collection(db, 'committees', committeeId, 'motions');
+    const ref = await addDoc(motionsCol, {
+        ...motionPayload,
+        creatorUid: user.uid,
+        creatorDisplayName: user.displayName || user.email || '',
+        createdAt: serverTimestamp(),
+        status: 'active',
+        tally: { yes: 0, no: 0, abstain: 0 },
+    });
+
+    return ref.id;
+}
+
+export async function deleteMotion(committeeId, motionId) {
+    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
+    await updateDoc(motionRef, { status: 'deleted' });
+}
+
+// Delete a committee document. Note: this removes the committee document but
+// does not recursively delete subcollections (Firestore does not support
+// recursive deletes from the client). Consider a Cloud Function or admin
+// script for a full cleanup if needed.
+export async function deleteCommittee(committeeId) {
+    if (!auth.currentUser) throw new Error('Not signed in');
+    const ref = doc(db, 'committees', committeeId);
+    await deleteDoc(ref);
+    return true;
+}
+
+export async function approveMotion(committeeId, motionId) {
+    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
+    await updateDoc(motionRef, {
+        status: 'completed',
+        approvedAt: serverTimestamp(),
+    });
+}
+
+export async function closeMotionVoting(committeeId, motionId) {
+    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
+    await updateDoc(motionRef, {
+        status: 'closed',
+        closedAt: serverTimestamp(),
+    });
 }
