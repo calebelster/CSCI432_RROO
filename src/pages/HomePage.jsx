@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/HomePage.css';
-import { createCommittee } from '../firebase/committees';
+import { createCommittee, deleteCommittee } from '../firebase/committees';
 import { db } from '../firebase/firebase';
 import { collectionGroup, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 
@@ -184,9 +184,18 @@ function HomePage({ currentUser }) {
         navigate(`/committee?name=${committeeName}`);
     }
 
-    function handleDeleteCommittee(committee) {
-        const ok = window.confirm(`Delete committee "${committee.name}"? This will remove all local data for this committee.`);
-        if (!ok) return;
+    async function handleDeleteCommittee(committee) {
+        // Attempt to remove committee from Firestore first (only owner allowed)
+        try {
+            if (!committee.id) throw new Error('Committee id missing');
+            await deleteCommittee(committee.id);
+        } catch (err) {
+            console.warn('deleteCommittee failed:', err);
+            alert('Failed to delete committee: ' + (err?.message || err));
+            return;
+        }
+
+        // Remove from local state after successful server-side deletion
         setHomeData(prev => {
             const committees = (prev.committees || []).filter(c => c.name !== committee.name);
             const committeeData = { ...(prev.committeeData || {}) };
@@ -397,13 +406,11 @@ function HomePage({ currentUser }) {
                             </button>
                             <button
                                 className="confirm-delete"
-                                onClick={() => {
+                                onClick={async () => {
                                     const committeeObj = homeData.committees.find(
                                         c => c.name === confirmDeleteFor
                                     );
-                                    if (committeeObj) {
-                                        handleDeleteCommittee(committeeObj);
-                                    }
+                                    if (committeeObj) await handleDeleteCommittee(committeeObj);
                                     setConfirmDeleteFor(null);
                                 }}
                             >

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import '../styles/Committee.css';
-import { createMotion, deleteMotion, approveMotion, closeMotionVoting } from '../firebase/committees';
+import { createMotion, deleteMotion, approveMotion, closeMotionVoting, setMemberRole } from '../firebase/committees';
 import { db, auth } from '../firebase/firebase';
 import { collection, doc, getDocs, query, where, onSnapshot, getDoc } from 'firebase/firestore';
 
@@ -220,7 +220,13 @@ export default function Committee() {
 
     function viewMotion(motion) {
         try {
-            sessionStorage.setItem('motion_' + motion.id, JSON.stringify({ ...motion, committeeId: committeeObj?.id || committeeName, creatorUid: motion.creatorUid }));
+            // include current user's role for the committee so Motions view can render owner/chair UI
+            let myRole = 'member';
+            try {
+                const me = (committeeData.members || []).find(m => m.uid === auth.currentUser?.uid);
+                if (me && me.role) myRole = me.role;
+            } catch (e) { }
+            sessionStorage.setItem('motion_' + motion.id, JSON.stringify({ ...motion, committeeId: committeeObj?.id || committeeName, creatorUid: motion.creatorUid, userRole: myRole }));
         } catch (e) { }
         navigate(`/motions?id=${motion.id}`);
     }
@@ -380,7 +386,28 @@ export default function Committee() {
                                                 </div>
                                             </td>
                                             <td className="member-pos">
-                                                {member.role && <div className="role-badge position-badge">{member.role === 'owner' ? 'Owner' : member.role}</div>}
+                                                {member.role && (
+                                                    (auth.currentUser && committeeObj?.data?.ownerUid === auth.currentUser.uid && member.uid !== committeeObj?.data?.ownerUid)
+                                                        ? (
+                                                            <select
+                                                                value={member.role}
+                                                                onChange={async (e) => {
+                                                                    const newRole = e.target.value;
+                                                                    try {
+                                                                        await setMemberRole(committeeObj.id, member.uid, newRole);
+                                                                    } catch (err) {
+                                                                        console.error('Failed to set role:', err);
+                                                                        alert('Failed to change role: ' + (err?.message || err));
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <option value="member">Member</option>
+                                                                <option value="chair">Chair</option>
+                                                            </select>
+                                                        ) : (
+                                                            <div className="role-badge position-badge">{member.role === 'owner' ? 'Owner' : (member.role === 'chair' ? 'Chair' : 'Member')}</div>
+                                                        )
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
