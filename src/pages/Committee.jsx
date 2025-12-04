@@ -48,23 +48,26 @@ export default function Committee() {
         name: committeeName,
         description: '',
     });
-    const [committeeObj, setCommitteeObj] = useState(null); // { id, data }
+    const [committeeObj, setCommitteeObj] = useState(null);
     const [committeeData, setCommitteeData] = useState({
         members: [],
         motions: [],
         meetings: [],
+        decisions: [],
     });
     const [activeTab, setActiveTab] = useState('motions');
     const [motionFilter, setMotionFilter] = useState('active');
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState({
-        type: 'Main Motion',
+        motionType: 'standard',
         title: '',
         description: '',
         voteThreshold: 'Simple Majority',
         requiresDiscussion: true,
         secondRequired: true,
         allowAnonymous: false,
+        isSpecial: false,
+        parentMotionId: null,
     });
     const [showInvite, setShowInvite] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
@@ -79,10 +82,11 @@ export default function Committee() {
     useEffect(() => {
         let unsubMembers = null;
         let unsubMotions = null;
+        let unsubDecisions = null;
 
         async function lookup() {
             setCommitteeObj(null);
-            setCommitteeData({ members: [], motions: [], meetings: [] });
+            setCommitteeData({ members: [], motions: [], meetings: [], decisions: [] });
 
             try {
                 const q = query(
@@ -92,7 +96,7 @@ export default function Committee() {
                 const snaps = await getDocs(q);
                 if (snaps.empty) {
                     setCommitteeInfo({ name: committeeName, description: '' });
-                    setCommitteeData({ members: [], motions: [], meetings: [] });
+                    setCommitteeData({ members: [], motions: [], meetings: [], decisions: [] });
                     return;
                 }
 
@@ -103,6 +107,7 @@ export default function Committee() {
                 setCommitteeInfo({ name: data.name, description: data.description });
                 setInviteCode(data.inviteCode || '');
 
+                // Members listener
                 const membersCol = collection(db, 'committees', committeeId, 'members');
                 unsubMembers = onSnapshot(membersCol, msnap => {
                     const rawMembers = msnap.docs.map(d => ({
@@ -114,32 +119,24 @@ export default function Committee() {
                         try {
                             const enriched = await Promise.all(
                                 rawMembers.map(async m => {
-                                    // Try to enrich from users collection
                                     try {
                                         const userDoc = await getDoc(doc(db, 'users', m.uid));
                                         if (userDoc.exists()) {
                                             const ud = userDoc.data();
-                                            const joinedSource =
-                                                ud.createdAt || m.joinedAt || null;
+                                            const joinedSource = ud.createdAt || m.joinedAt || null;
                                             const joined = joinedSource
                                                 ? formatDateSafe(joinedSource)
                                                 : null;
                                             return {
                                                 ...m,
-                                                displayName:
-                                                    ud.displayName || m.displayName || null,
+                                                displayName: ud.displayName || m.displayName || null,
                                                 email: ud.email || m.email || null,
                                                 photoURL: ud.photoURL || m.photoURL || null,
                                                 joinedAt: joined,
                                             };
                                         }
-                                    } catch {
-                                        // ignore per-member errors
-                                    }
-                                    // Fallback: normalize m.joinedAt if present
-                                    const joined = m.joinedAt
-                                        ? formatDateSafe(m.joinedAt)
-                                        : null;
+                                    } catch {}
+                                    const joined = m.joinedAt ? formatDateSafe(m.joinedAt) : null;
                                     return { ...m, joinedAt: joined };
                                 })
                             );
@@ -149,7 +146,6 @@ export default function Committee() {
                                 members: enriched,
                             }));
                         } catch {
-                            // on any failure, fall back to raw list but normalize joinedAt
                             const normalized = rawMembers.map(m => ({
                                 ...m,
                                 joinedAt: m.joinedAt ? formatDateSafe(m.joinedAt) : null,
@@ -162,6 +158,7 @@ export default function Committee() {
                     })();
                 });
 
+                // Motions listener
                 const motionsCol = collection(
                     db,
                     'committees',
@@ -188,16 +185,44 @@ export default function Committee() {
                                         : '',
                                 status: md.status || 'active',
                                 type: md.type || '',
+                                kind: md.kind || 'standard',
                                 threshold: md.voteThreshold || 'Simple Majority',
                                 requiresDiscussion: !!md.requiresDiscussion,
                                 secondRequired: !!md.secondRequired,
                                 discussionStyle: md.discussionStyle || 'Offline',
                                 anonymousVotes: !!md.anonymousVotes,
                                 tally: md.tally || { yes: 0, no: 0, abstain: 0 },
+                                parentMotionId: md.parentMotionId || null,
+                                relatedTo: md.relatedTo || null,
                             };
                         })
                         .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
                     setCommitteeData(prev => ({ ...prev, motions }));
+                });
+
+                // Decisions listener
+                const decisionsCol = collection(
+                    db,
+                    'committees',
+                    committeeId,
+                    'decisions'
+                );
+                unsubDecisions = onSnapshot(decisionsCol, dsnap => {
+                    const decisions = dsnap.docs
+                        .map(d => ({
+                            id: d.id,
+                            ...d.data(),
+                            createdAt: d.data().createdAt
+                                ? d.data().createdAt.toDate?.()?.toLocaleDateString?.() ||
+                                String(d.data().createdAt)
+                                : '',
+                        }))
+                        .sort((a, b) => {
+                            const dateA = new Date(b.createdAt).getTime();
+                            const dateB = new Date(a.createdAt).getTime();
+                            return dateA - dateB;
+                        });
+                    setCommitteeData(prev => ({ ...prev, decisions }));
                 });
             } catch (err) {
                 console.warn('committee lookup failed', err);
@@ -209,6 +234,7 @@ export default function Committee() {
         return () => {
             if (unsubMembers) unsubMembers();
             if (unsubMotions) unsubMotions();
+            if (unsubDecisions) unsubDecisions();
         };
     }, [committeeName]);
 
@@ -225,35 +251,49 @@ export default function Committee() {
     function closeModal() {
         setShowModal(false);
         setForm({
-            type: 'Main Motion',
+            motionType: 'standard',
             title: '',
             description: '',
             voteThreshold: 'Simple Majority',
             requiresDiscussion: true,
             secondRequired: true,
             allowAnonymous: false,
+            isSpecial: false,
+            parentMotionId: null,
         });
     }
 
     async function handleCreateMotion(e) {
         e.preventDefault();
+
         const motionPayload = {
             title: form.title || 'Untitled Motion',
             description: form.description || '',
-            type: form.type,
+            type:
+                form.motionType === 'special'
+                    ? 'Special Motion'
+                    : form.motionType === 'overturn'
+                        ? 'Overturn Motion'
+                        : form.motionType === 'sub'
+                            ? 'Sub-Motion'
+                            : 'Main Motion',
+            kind: form.motionType,
             threshold: form.voteThreshold,
             anonymousVotes: !!form.allowAnonymous,
-            requiresDiscussion: true,
+            requiresDiscussion: form.isSpecial ? false : form.requiresDiscussion,
             secondRequired: !!form.secondRequired,
+            allowAnonymous: !!form.allowAnonymous,
+            ...(form.motionType === 'sub' && { parentMotionId: form.parentMotionId }),
         };
 
         const committeeId = committeeObj?.id || committeeName;
         setCreatingMotion(true);
         let motionId = null;
+
         try {
             motionId = await createMotion(committeeId, motionPayload);
         } catch (err) {
-            console.warn('createMotion failed, falling back to local-only:', err);
+            console.warn('createMotion failed:', err);
         } finally {
             setCreatingMotion(false);
         }
@@ -266,12 +306,13 @@ export default function Committee() {
                 creator: 'You',
                 date: new Date().toLocaleDateString(),
                 status: 'active',
+                kind: form.motionType,
                 type: motionPayload.type,
                 threshold: motionPayload.threshold,
-                requiresDiscussion: !!motionPayload.requiresDiscussion,
+                requiresDiscussion: motionPayload.requiresDiscussion,
                 secondRequired: motionPayload.secondRequired,
-                discussionStyle: motionPayload.discussionStyle,
-                anonymousVotes: motionPayload.anonymousVotes,
+                tally: { yes: 0, no: 0, abstain: 0 },
+                parentMotionId: form.parentMotionId || null,
             };
             setCommitteeData(prev => ({
                 ...prev,
@@ -366,6 +407,12 @@ export default function Committee() {
 
     const isCommitteeOwner =
         auth.currentUser && committeeObj?.data?.ownerUid === auth.currentUser.uid;
+    const isChair =
+        auth.currentUser &&
+        committeeData.members?.some(
+            m => m.uid === auth.currentUser.uid && m.role === 'chair'
+        );
+    const isOwnerOrChair = isCommitteeOwner || isChair;
 
     async function handleRegenerateCode() {
         if (!committeeObj?.id) return;
@@ -396,10 +443,7 @@ export default function Committee() {
                     </div>
                 </div>
                 <div className="committee-header-right">
-                    <button
-                        className="invite-btn"
-                        onClick={() => setShowInvite(true)}
-                    >
+                    <button className="invite-btn" onClick={() => setShowInvite(true)}>
                         Invite Members
                     </button>
                     <button className="new-motion-btn" onClick={openModal}>
@@ -433,16 +477,20 @@ export default function Committee() {
                 <button
                     className={`tab ${activeTab === 'motions' ? 'active' : ''}`}
                     onClick={() => setActiveTab('motions')}
-                    data-tab="motions"
                 >
                     Motions
                 </button>
                 <button
                     className={`tab ${activeTab === 'members' ? 'active' : ''}`}
                     onClick={() => setActiveTab('members')}
-                    data-tab="members"
                 >
                     Members
+                </button>
+                <button
+                    className={`tab ${activeTab === 'decisions' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('decisions')}
+                >
+                    Decisions
                 </button>
             </div>
 
@@ -495,9 +543,22 @@ export default function Committee() {
                                         <div className="motion-card-header">
                                             <div className="motion-card-title-wrap">
                                                 <h3 className="motion-title">{motion.name}</h3>
-                                                {motion.status === 'active' && (
-                                                    <span className="motion-badge">Active</span>
-                                                )}
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    {motion.status === 'active' && (
+                                                        <span className="motion-badge">Active</span>
+                                                    )}
+                                                    {motion.kind === 'special' && (
+                                                        <span className="motion-badge special">Special</span>
+                                                    )}
+                                                    {motion.kind === 'sub' && (
+                                                        <span className="motion-badge sub">Sub-Motion</span>
+                                                    )}
+                                                    {motion.kind === 'overturn' && (
+                                                        <span className="motion-badge overturn">
+                              Overturn
+                            </span>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="motion-card-actions-top">
                                                 {auth.currentUser?.uid === motion.creatorUid &&
@@ -509,7 +570,7 @@ export default function Committee() {
                                                             Delete
                                                         </button>
                                                     )}
-                                                {motion.status === 'closed' && isCommitteeOwner && (
+                                                {motion.status === 'closed' && isOwnerOrChair && (
                                                     <button
                                                         className="approve-motion-btn"
                                                         onClick={() => handleApproveMotion(motion.id)}
@@ -568,7 +629,9 @@ export default function Committee() {
                                         member.displayName ||
                                         member.email ||
                                         (member.uid === auth.currentUser?.uid
-                                            ? auth.currentUser.displayName || auth.currentUser.email || 'You'
+                                            ? auth.currentUser.displayName ||
+                                            auth.currentUser.email ||
+                                            'You'
                                             : 'Member');
 
                                     return (
@@ -577,10 +640,7 @@ export default function Committee() {
                                                 <div className="member-item">
                                                     <div className="member-avatar">
                                                         {member.photoURL ? (
-                                                            <img
-                                                                src={member.photoURL}
-                                                                alt={display}
-                                                            />
+                                                            <img src={member.photoURL} alt={display} />
                                                         ) : (
                                                             <div className="avatar-initials">
                                                                 {display
@@ -601,11 +661,15 @@ export default function Committee() {
                                                                 gap: '0.6rem',
                                                             }}
                                                         >
-                                                            <div className="member-name-text">{display}</div>
+                                                            <div className="member-name-text">
+                                                                {display}
+                                                            </div>
                                                         </div>
                                                         <div className="member-sub">
                                                             {member.email && (
-                                                                <div className="member-email">{member.email}</div>
+                                                                <div className="member-email">
+                                                                    {member.email}
+                                                                </div>
                                                             )}
                                                             {member.joinedAt && (
                                                                 <div className="member-joined">
@@ -618,7 +682,11 @@ export default function Committee() {
                                             </td>
                                             <td className="member-pos">
                                                 <div className="role-badge position-badge">
-                                                    {member.role === 'owner' ? 'Owner' : member.role}
+                                                    {member.role === 'owner'
+                                                        ? 'Owner'
+                                                        : member.role === 'chair'
+                                                            ? 'Chair'
+                                                            : member.role}
                                                 </div>
                                             </td>
                                         </tr>
@@ -626,6 +694,87 @@ export default function Committee() {
                                 })}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'decisions' && (
+                    <div className="decisions-section">
+                        <div className="decisions-header">Recorded Decisions</div>
+                        <div className="decisions-list">
+                            {(committeeData.decisions || []).length === 0 ? (
+                                <div className="no-decisions">
+                                    No decisions recorded yet.
+                                </div>
+                            ) : (
+                                (committeeData.decisions || []).map(decision => {
+                                    const relatedMotion = (committeeData.motions || []).find(
+                                        m => m.id === decision.motionId
+                                    );
+                                    return (
+                                        <div key={decision.id} className="decision-card">
+                                            <div className="decision-header">
+                                                <h3>
+                                                    {relatedMotion?.name ||
+                                                        `Motion ${decision.motionId}`}
+                                                </h3>
+                                                <div className="decision-date">
+                                                    {decision.createdAt}
+                                                </div>
+                                            </div>
+                                            <div className="decision-meta">
+                                                <small>Recorded by {decision.recordedByName}</small>
+                                            </div>
+                                            {decision.summary && (
+                                                <div className="decision-summary">
+                                                    <strong>Summary:</strong>
+                                                    <p>{decision.summary}</p>
+                                                </div>
+                                            )}
+                                            {decision.pros && decision.pros.length > 0 && (
+                                                <div className="decision-pros">
+                                                    <strong>Pros:</strong>
+                                                    <ul>
+                                                        {decision.pros.map((pro, i) => (
+                                                            <li key={i}>{pro}</li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                            {decision.cons && decision.cons.length > 0 && (
+                                                <div className="decision-cons">
+                                                    <strong>Cons:</strong>
+                                                    <ul>
+                                                        {decision.cons.map((con, i) => (
+                                                            <li key={i}>{con}</li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                            {decision.discussionSnapshot &&
+                                                decision.discussionSnapshot.length > 0 && (
+                                                    <div className="decision-discussion">
+                                                        <strong>
+                                                            Discussion ({decision.discussionSnapshot.length}{' '}
+                                                            comments)
+                                                        </strong>
+                                                    </div>
+                                                )}
+                                            {decision.recordingUrl && (
+                                                <div className="decision-recording">
+                                                    <a
+                                                        href={decision.recordingUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                    >
+                                                        View Recording
+                                                    </a>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
                         </div>
                     </div>
                 )}
@@ -657,23 +806,62 @@ export default function Committee() {
                             onSubmit={handleCreateMotion}
                         >
                             <div className="form-row">
+                                <label className="form-label">Motion Type</label>
+                                <select
+                                    value={form.motionType}
+                                    onChange={e =>
+                                        setForm({ ...form, motionType: e.target.value })
+                                    }
+                                    className="form-select"
+                                >
+                                    <option value="standard">Standard Motion</option>
+                                    <option value="sub">Sub-Motion (Revision/Postpone)</option>
+                                    <option value="overturn">
+                                        Motion to Overturn Previous Decision
+                                    </option>
+                                    <option value="special">
+                                        Special Motion (No Discussion)
+                                    </option>
+                                </select>
+                            </div>
+
+                            {form.motionType === 'sub' && (
+                                <div className="form-row">
+                                    <label className="form-label">Related Motion</label>
+                                    <select
+                                        value={form.parentMotionId || ''}
+                                        onChange={e =>
+                                            setForm({ ...form, parentMotionId: e.target.value })
+                                        }
+                                        className="form-select"
+                                    >
+                                        <option value="">Select a motion...</option>
+                                        {(committeeData.motions || [])
+                                            .filter(m => m.status !== 'deleted')
+                                            .map(m => (
+                                                <option key={m.id} value={m.id}>
+                                                    {m.name}
+                                                </option>
+                                            ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div className="form-row">
                                 <label className="form-label">Motion Title</label>
                                 <input
-                                    name="title"
                                     type="text"
                                     required
                                     placeholder="e.g., Approve Budget for Q2 2024"
                                     value={form.title}
-                                    onChange={e =>
-                                        setForm({ ...form, title: e.target.value })
-                                    }
+                                    onChange={e => setForm({ ...form, title: e.target.value })}
                                     className="form-input"
                                 />
                             </div>
+
                             <div className="form-row">
                                 <label className="form-label">Motion Description</label>
                                 <textarea
-                                    name="description"
                                     required
                                     placeholder="Provide a detailed description..."
                                     value={form.description}
@@ -683,67 +871,80 @@ export default function Committee() {
                                     className="form-textarea"
                                 />
                             </div>
-                            <div className="form-row">
-                                <label className="form-label">Vote Threshold</label>
-                                <select
-                                    name="voteThreshold"
-                                    value={form.voteThreshold}
-                                    onChange={e =>
-                                        setForm({ ...form, voteThreshold: e.target.value })
-                                    }
-                                    className="form-select"
-                                >
-                                    <option value="Simple Majority">
-                                        Simple Majority &gt;50% of votes cast
-                                    </option>
-                                    <option value="Two-Thirds">
-                                        Two-Thirds (≈66% of votes)
-                                    </option>
-                                    <option value="Unanimous">Unanimous (all Yes)</option>
-                                </select>
-                            </div>
 
-                            <div className="committee-settings">
-                                <div className="settings-title">Motion Settings</div>
-                                <div className="settings-list">
+                            {form.motionType !== 'special' && (
+                                <>
                                     <div className="form-row">
-                                        <label className="form-label">Second Required</label>
-                                        <label className="switch">
-                                            <input
-                                                type="checkbox"
-                                                name="secondRequired"
-                                                checked={form.secondRequired}
-                                                onChange={e =>
-                                                    setForm({
-                                                        ...form,
-                                                        secondRequired: e.target.checked,
-                                                    })
-                                                }
-                                            />
-                                            <span className="switch-slider" />
-                                        </label>
+                                        <label className="form-label">Vote Threshold</label>
+                                        <select
+                                            value={form.voteThreshold}
+                                            onChange={e =>
+                                                setForm({ ...form, voteThreshold: e.target.value })
+                                            }
+                                            className="form-select"
+                                        >
+                                            <option value="Simple Majority">
+                                                Simple Majority (&gt;50% of votes cast)
+                                            </option>
+                                            <option value="Two-Thirds">
+                                                Two-Thirds (≈66% of votes)
+                                            </option>
+                                            <option value="Unanimous">
+                                                Unanimous (All Yes)
+                                            </option>
+                                        </select>
                                     </div>
-                                    <div className="form-row">
-                                        <label className="form-label">
-                                            Allow Anonymous Voting
-                                        </label>
-                                        <label className="switch">
-                                            <input
-                                                type="checkbox"
-                                                name="allowAnonymous"
-                                                checked={form.allowAnonymous}
-                                                onChange={e =>
-                                                    setForm({
-                                                        ...form,
-                                                        allowAnonymous: e.target.checked,
-                                                    })
-                                                }
-                                            />
-                                            <span className="switch-slider" />
-                                        </label>
+
+                                    <div className="committee-settings">
+                                        <div className="settings-title">Motion Settings</div>
+                                        <div className="settings-list">
+                                            <div className="form-row">
+                                                <label className="form-label">Second Required</label>
+                                                <label className="switch">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={form.secondRequired}
+                                                        onChange={e =>
+                                                            setForm({
+                                                                ...form,
+                                                                secondRequired: e.target.checked,
+                                                            })
+                                                        }
+                                                    />
+                                                    <span className="switch-slider" />
+                                                </label>
+                                            </div>
+                                            <div className="form-row">
+                                                <label className="form-label">
+                                                    Allow Anonymous Voting
+                                                </label>
+                                                <label className="switch">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={form.allowAnonymous}
+                                                        onChange={e =>
+                                                            setForm({
+                                                                ...form,
+                                                                allowAnonymous: e.target.checked,
+                                                            })
+                                                        }
+                                                    />
+                                                    <span className="switch-slider" />
+                                                </label>
+                                            </div>
+                                        </div>
                                     </div>
+                                </>
+                            )}
+
+                            {form.motionType === 'special' && (
+                                <div className="form-row">
+                                    <small>
+                                        Special motions cannot be discussed and proceed directly to
+                                        voting.
+                                    </small>
                                 </div>
-                            </div>
+                            )}
 
                             <div className="form-actions">
                                 <button
@@ -856,8 +1057,7 @@ export default function Committee() {
                                 <button
                                     disabled={!inviteCode}
                                     onClick={() =>
-                                        inviteCode &&
-                                        navigator.clipboard?.writeText(shareLink)
+                                        inviteCode && navigator.clipboard?.writeText(shareLink)
                                     }
                                 >
                                     Copy

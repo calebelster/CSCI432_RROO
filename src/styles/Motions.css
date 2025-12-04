@@ -1216,3 +1216,94 @@ h1 {
     color: #6b7280;
     font-size: 13px;
 }
+
+/* Anonymous voting */
+.anonymous-toggle {
+    padding: 12px;
+    background: var(--color-secondary);
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+
+.switch-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.switch-slider-small {
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+    background: #ccc;
+    border-radius: 10px;
+    position: relative;
+    transition: background 0.2s ease;
+}
+
+.switch-inline input:checked ~ .switch-slider-small {
+    background: var(--color-primary);
+}
+
+/* Decision recording button */
+.owner-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+}
+
+.record-decision-btn {
+    padding: 10px 16px;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.record-decision-btn:hover {
+    background: var(--color-primary-hover);
+}
+
+/* Decision form in modal */
+.decision-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.decision-form .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.decision-form label {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--color-text);
+}
+
+.decision-form textarea,
+.decision-form input {
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--color-text);
+    background: var(--color-surface);
+}
+
+.decision-form textarea:focus,
+.decision-form input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(33, 128, 141, 0.1);
+}
