@@ -1,17 +1,17 @@
-/*
-Rules implement:
-- users: owner-only updates
-- committees and nested collections: members control
-*/
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() { return request.auth != null; }
-    function memberRole(committeeId, uid) {
-      return exists(/databases/$(database)/documents/committees/$(committeeId)/members/$(uid)) ?
-             get(/databases/$(database)/documents/committees/$(committeeId)/members/$(uid)).data.role : "";
+    function isSignedIn() {
+      return request.auth != null;
     }
+
+    function memberRole(committeeId, uid) {
+      return exists(/databases/$(database)/documents/committees/$(committeeId)/members/$(uid))
+        ? get(/databases/$(database)/documents/committees/$(committeeId)/members/$(uid)).data.role
+        : "";
+    }
+
     function isMember(committeeId, uid) {
       return exists(/databases/$(database)/documents/committees/$(committeeId)/members/$(uid));
     }
@@ -23,50 +23,92 @@ service cloud.firestore {
     }
 
     match /committees/{committeeId} {
-      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
-      // read only for members
-      allow get, list: if isSignedIn() && isMember(committeeId, request.auth.uid);
-      // update settings only by owner or chair
-      allow update, delete: if isSignedIn() && (memberRole(committeeId, request.auth.uid) in ['owner', 'chair']);
+      // Create: authenticated user creating a committee they own
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid;
+
+      // Read (get/list): only for members of that committee
+      allow get, list: if isSignedIn()
+        && isMember(committeeId, request.auth.uid);
+
+      // Update/delete: only owner or chair, and only on safe fields
+      allow update, delete: if isSignedIn()
+        && (memberRole(committeeId, request.auth.uid) in ['owner', 'chair'])
+        && request.resource.data.diff(resource.data)
+             .affectedKeys()
+             .hasOnly([
+               'name',
+               'description',
+               'settings',
+               'inviteCode'
+             ]);
 
       match /members/{memberId} {
-        // members list readable by members
-        allow read: if isSignedIn() && isMember(committeeId, request.auth.uid);
-        // add or change membership by owner or chair; user can remove themself
-        allow create, update, delete: if isSignedIn() &&
-            (memberRole(committeeId, request.auth.uid) in ['owner','chair'] || request.auth.uid == memberId);
+        // Members list readable by members
+        allow read: if isSignedIn()
+          && isMember(committeeId, request.auth.uid);
+
+        // Add/change membership by owner or chair; user can remove themself
+        allow create, update, delete: if isSignedIn()
+          && (
+            memberRole(committeeId, request.auth.uid) in ['owner', 'chair']
+            || request.auth.uid == memberId
+          );
       }
 
       match /motions/{motionId} {
-        allow read: if isSignedIn() && isMember(committeeId, request.auth.uid);
-        // members can create motions; creatorUid must match
-        allow create: if isSignedIn() && isMember(committeeId, request.auth.uid) &&
-                      request.resource.data.creatorUid == request.auth.uid;
-        // only owner/chair can update status or settings of a motion
-        allow update, delete: if isSignedIn() && (memberRole(committeeId, request.auth.uid) in ['owner','chair']);
+        // Members can read motions
+        allow read: if isSignedIn()
+          && isMember(committeeId, request.auth.uid);
+
+        // Members can create motions; creatorUid must match
+        allow create: if isSignedIn()
+          && isMember(committeeId, request.auth.uid)
+          && request.resource.data.creatorUid == request.auth.uid;
+
+        // Only owner/chair can update/delete motions
+        allow update, delete: if isSignedIn()
+          && (memberRole(committeeId, request.auth.uid) in ['owner', 'chair']);
 
         match /replies/{replyId} {
-          allow create: if isSignedIn() && isMember(committeeId, request.auth.uid) &&
-                        request.resource.data.authorUid == request.auth.uid;
-          allow read: if isSignedIn() && isMember(committeeId, request.auth.uid);
-          allow delete: if isSignedIn() && (memberRole(committeeId, request.auth.uid) in ['owner','chair']);
+          allow create: if isSignedIn()
+            && isMember(committeeId, request.auth.uid)
+            && request.resource.data.authorUid == request.auth.uid;
+
+          allow read: if isSignedIn()
+            && isMember(committeeId, request.auth.uid);
+
+          allow delete: if isSignedIn()
+            && (memberRole(committeeId, request.auth.uid) in ['owner', 'chair']);
         }
 
         match /votes/{voteId} {
-          allow create: if isSignedIn() && isMember(committeeId, request.auth.uid) &&
-                        // ensure client sets voterUid to themselves
-                        request.resource.data.voterUid == request.auth.uid;
-          // votes read: non-anonymous votes readable by members; anonymous votes only visible to chair/owner
-          allow read: if isSignedIn() &&
-            ( !resource.data.anonymous || (memberRole(committeeId, request.auth.uid) in ['owner','chair']) ) &&
-            isMember(committeeId, request.auth.uid);
-          allow delete: if isSignedIn() && (memberRole(committeeId, request.auth.uid) in ['owner','chair']);
+          // Members can cast votes; voterUid must match auth uid
+          allow create: if isSignedIn()
+            && isMember(committeeId, request.auth.uid)
+            && request.resource.data.voterUid == request.auth.uid;
+
+          // Votes read:
+          // - non-anonymous votes readable by members
+          // - anonymous votes only visible to chair/owner
+          allow read: if isSignedIn()
+            && isMember(committeeId, request.auth.uid)
+            && (
+              !resource.data.anonymous
+              || (memberRole(committeeId, request.auth.uid) in ['owner', 'chair'])
+            );
+
+          allow delete: if isSignedIn()
+            && (memberRole(committeeId, request.auth.uid) in ['owner', 'chair']);
         }
       }
 
       match /decisions/{decisionId} {
-        allow read: if isSignedIn() && isMember(committeeId, request.auth.uid);
-        allow create, update, delete: if isSignedIn() && (memberRole(committeeId, request.auth.uid) in ['owner','chair']);
+        allow read: if isSignedIn()
+          && isMember(committeeId, request.auth.uid);
+
+        allow create, update, delete: if isSignedIn()
+          && (memberRole(committeeId, request.auth.uid) in ['owner', 'chair']);
       }
     }
   }
