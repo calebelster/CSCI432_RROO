@@ -283,7 +283,7 @@ export default function Motions() {
             const params = new URLSearchParams(location.search);
             const cidFromUrl = params.get('cid');
             if (cidFromUrl) return cidFromUrl;
-        } catch {}
+        } catch { }
 
         try {
             const raw = sessionStorage.getItem('motion_' + motionId);
@@ -576,7 +576,7 @@ export default function Motions() {
                     setTimeout(() => el.classList.remove('focused-motion'), 2200);
                 }
             }
-        } catch {}
+        } catch { }
     }, [location.search]);
 
     function formatDateField(value) {
@@ -595,10 +595,23 @@ export default function Motions() {
 
     const params = new URLSearchParams(location.search);
     const motionIdParam = params.get('id');
-    const isDetailView = motionIdParam && motions.length === 1;
+    const isDetailView = !!motionIdParam;
 
-    if (isDetailView && motions.length === 1) {
-        const motion = motions[0];
+    // Try to get motion from state first, then from sessionStorage as fallback
+    let detailMotion = motions.length > 0 ? motions[0] : null;
+    if (!detailMotion && motionIdParam) {
+        try {
+            const stored = sessionStorage.getItem('motion_' + motionIdParam);
+            if (stored) {
+                detailMotion = JSON.parse(stored);
+            }
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    if (isDetailView && detailMotion) {
+        const motion = detailMotion;
         const statusInfo = getStatusInfo(motion);
         const isFinalStatus =
             statusInfo.key === 'approved' || statusInfo.key === 'denied';
@@ -672,9 +685,8 @@ export default function Motions() {
                         <button
                             aria-selected={selectedTab === 'discussion'}
                             onClick={() => setSelectedTab('discussion')}
-                            className={`tab ${
-                                selectedTab === 'discussion' ? 'active' : ''
-                            }`}
+                            className={`tab ${selectedTab === 'discussion' ? 'active' : ''
+                                }`}
                         >
                             Discussion
                         </button>
@@ -1274,7 +1286,7 @@ export default function Motions() {
         );
     }
 
-    // Default list view for all motions (if not in detail mode)
+    // Default blank view when no motion is selected
     return (
         <div className="motions-page">
             <button
@@ -1286,68 +1298,6 @@ export default function Motions() {
                 <span className="back-label">Back</span>
             </button>
             <h1>Motions</h1>
-
-            <div id="motions-container">
-                {motions.map(motion => {
-                    const si = getStatusInfo(motion);
-                    const isFinal = si.key === 'approved' || si.key === 'denied';
-                    const createdAtLabel = formatDateField(motion.createdAt);
-                    return (
-                        <div
-                            id={'motion-' + motion.id}
-                            key={motion.id}
-                            className={`motion motion-${motion.status.toLowerCase()}`}
-                        >
-                            <div className="status-badge-top">{si.label}</div>
-                            <div
-                                style={{ display: 'flex', alignItems: 'center', gap: 12 }}
-                            >
-                                <h2 style={{ margin: 0 }}>{motion.title}</h2>
-                                <span className="status-tag">{si.label}</span>
-                            </div>
-                            <p>
-                                <strong>Description</strong> {motion.description}
-                            </p>
-                            <p>
-                                <strong>Creator</strong> {motion.creator}
-                                <span
-                                    style={{
-                                        marginLeft: 12,
-                                        color: 'var(--text)',
-                                        opacity: 0.85,
-                                    }}
-                                >
-                  {createdAtLabel}
-                </span>
-                            </p>
-                            <div className="motion-meta-row">
-                                <div className="motion-meta">
-                                    <span className="creator">{motion.creator}</span>
-                                </div>
-                                <div className="motion-meta-right">
-                                    <span className="date">{createdAtLabel}</span>
-                                </div>
-                            </div>
-                            <p>
-                                <strong>Status</strong> {motion.status}
-                            </p>
-                            <p>
-                                <strong>Vote Threshold</strong> {motion.threshold}
-                            </p>
-                            <div className="motion-actions">
-                                <button
-                                    className="view-details-btn"
-                                    onClick={() => {
-                                        navigate(`/motions?id=${motion.id}`);
-                                    }}
-                                >
-                                    View Details
-                                </button>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
         </div>
     );
 }
