@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import '../styles/Motions.css';
-import { replyToMotion, castVote, approveMotion, closeMotionVoting } from '../firebase/committees';
+import { replyToMotion, castVote, approveMotion, closeMotionVoting, denyMotion } from '../firebase/committees';
 import { db, auth } from '../firebase/firebase';
 import { collection, onSnapshot, doc, getDocs, getDoc } from 'firebase/firestore';
 
@@ -158,6 +158,33 @@ export default function Motions() {
     }, [location.search]);
 
     const isCommitteeOwner = auth.currentUser?.uid === committeeOwnerUid;
+
+    // Evaluate whether a motion meets its voting threshold
+    function evaluateThreshold(m) {
+        const yes = (m.tally?.yes) || 0;
+        const no = (m.tally?.no) || 0;
+        const abstain = (m.tally?.abstain) || 0;
+        const total = yes + no + abstain;
+        const thrRaw = (m.threshold || m.voteThreshold || 'Simple Majority').toString().toLowerCase();
+        let required = 0;
+        let passing = false;
+        if (total === 0) {
+            // No votes yet — cannot pass
+            required = 1;
+            passing = false;
+        } else if (thrRaw.includes('two')) {
+            required = Math.ceil((2 / 3) * total);
+            passing = yes >= required;
+        } else if (thrRaw.includes('unanim')) {
+            required = total;
+            passing = (yes === total && total > 0);
+        } else {
+            // default: simple majority >50% of votes cast
+            required = Math.floor(total / 2) + 1;
+            passing = yes >= required;
+        }
+        return { yes, no, abstain, total, required, passing };
+    }
 
     async function handleApproveMotion(motionId) {
         if (!window.confirm('Are you sure you want to approve this motion?')) return;
@@ -510,6 +537,40 @@ export default function Motions() {
                                 </div>
                             </div>
 
+                                {/* Owner action button shown only inside the Voting card (top-right) */}
+                                {isCommitteeOwner && (() => {
+                                    const ev = evaluateThreshold(motion);
+                                    const handleAction = async () => {
+                                        if (ev.passing) {
+                                            if (!window.confirm('Are you sure you want to approve this motion?')) return;
+                                            try {
+                                                const params = new URLSearchParams(location.search);
+                                                const cid = params.get('cid');
+                                                if (cid) await handleApproveMotion(motion.id);
+                                                else { console.error('Committee ID not found for approving motion.'); alert('Committee ID not found for approving motion.'); }
+                                            } catch (err) { console.error(err); }
+                                        } else {
+                                            if (!window.confirm('Are you sure you want to deny this motion?')) return;
+                                            try {
+                                                const params = new URLSearchParams(location.search);
+                                                const cid = params.get('cid');
+                                                if (cid) await denyMotion(cid, motion.id);
+                                                else { console.error('Committee ID not found for denying motion.'); alert('Committee ID not found for denying motion.'); }
+                                            } catch (err) { console.error(err); }
+                                        }
+                                    };
+                                    return (
+                                        <button
+                                            className={`action-btn ${ev.passing ? 'approve' : 'deny'}`}
+                                            onClick={handleAction}
+                                            aria-pressed={ev.passing}
+                                            style={{ position: 'absolute' }}
+                                        >
+                                            {ev.passing ? 'Approve Motion' : 'Deny Motion'}
+                                        </button>
+                                    );
+                                })()}
+
                             <div className="status-stats">
                                 <div className="stat-block">
                                     <div className="stat-number yes">{motion.tally?.yes || 0}</div>
@@ -527,16 +588,12 @@ export default function Motions() {
 
                             <div className="status-progress">
                                 {(() => {
-                                    const yes = motion.tally?.yes || 0;
-                                    const no = motion.tally?.no || 0;
-                                    const abstain = motion.tally?.abstain || 0;
-                                    const total = yes + no + abstain;
+                                    const { yes, no, abstain, total, required, passing } = evaluateThreshold(motion);
                                     const pct = total === 0 ? 0 : Math.round((yes / total) * 100);
-                                    const passing = yes > no; // simple heuristic
                                     return (
                                         <>
                                             <div className="progress-meta">
-                                                <div className="progress-label">Progress ({yes} of {Math.max(1, Math.floor((total / 2) || 1))} required)</div>
+                                                <div className="progress-label">Progress ({yes} of {required} required)</div>
                                                 <div className="progress-pct">{pct}%</div>
                                             </div>
                                             <div className="progress-bar">
@@ -550,6 +607,8 @@ export default function Motions() {
                                     );
                                 })()}
                             </div>
+
+                            {/* Owner actions moved to a single bottom-left action button for detail view */}
                         </div>
 
                         <div className="cast-vote card">
@@ -600,6 +659,31 @@ export default function Motions() {
                         </div>
                     </div>
                 )}
+                {/* Single action button (Approve or Deny) anchored bottom-left of the detail view */}
+                {isCommitteeOwner && (() => {
+                    const ev = evaluateThreshold(motion);
+                    const handleAction = async () => {
+                        if (ev.passing) {
+                            if (!window.confirm('Are you sure you want to approve this motion?')) return;
+                            try {
+                                const params = new URLSearchParams(location.search);
+                                const cid = params.get('cid');
+                                if (cid) await handleApproveMotion(motion.id);
+                                else { console.error('Committee ID not found for approving motion.'); alert('Committee ID not found for approving motion.'); }
+                            } catch (err) { console.error(err); }
+                        } else {
+                            if (!window.confirm('Are you sure you want to deny this motion?')) return;
+                            try {
+                                const params = new URLSearchParams(location.search);
+                                const cid = params.get('cid');
+                                if (cid) await denyMotion(cid, motion.id);
+                                else { console.error('Committee ID not found for denying motion.'); alert('Committee ID not found for denying motion.'); }
+                            } catch (err) { console.error(err); }
+                        }
+                    };
+
+                    return null;
+                })()}
             </div>
         );
     }
@@ -633,9 +717,7 @@ export default function Motions() {
                             {motion.status === 'active' && isCommitteeOwner && (
                                 <button className="close-voting-btn" onClick={() => handleCloseMotionVoting(motion.id)}>Close Voting</button>
                             )}
-                            {motion.status === 'closed' && isCommitteeOwner && (
-                                <button className="approve-motion-btn" onClick={() => handleApproveMotion(motion.id)}>Approve Motion</button>
-                            )}
+                            {/* Approve/Deny action will be shown as a single button in the bottom-left of detail view */}
                         </div>
 
                         <div className="replies">

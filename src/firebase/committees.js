@@ -233,6 +233,27 @@ export async function approveMotion(committeeId, motionId) {
     return true;
 }
 
+/* Deny a motion (committee owner) */
+export async function denyMotion(committeeId, motionId) {
+    if (!auth.currentUser) throw new Error('Not signed in');
+
+    const committeeRef = doc(db, 'committees', committeeId);
+    const committeeSnap = await getDoc(committeeRef);
+    const committeeData = committeeSnap.data();
+    const ownerUid = committeeData.ownerUid;
+
+    if (auth.currentUser.uid !== ownerUid) {
+        throw new Error('Not authorized to deny this motion');
+    }
+
+    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
+    await updateDoc(motionRef, {
+        status: 'denied',
+        deniedAt: serverTimestamp()
+    });
+    return true;
+}
+
 /* Utility: change user display name (also write to users collection for quick access) */
 export async function updateDisplayName(newName) {
     if (!auth.currentUser) throw new Error('Not signed in');

@@ -118,7 +118,7 @@ export default function Committee() {
                             anonymousVotes: !!md.anonymousVotes,
                             tally: md.tally || { yes: 0, no: 0, abstain: 0 }
                         };
-                    }).sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+                    }).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
                     setCommitteeData(prev => ({ ...prev, motions }));
                 });
 
@@ -202,18 +202,20 @@ export default function Committee() {
     const filteredMotions = (committeeData.motions || []).filter((m) => {
         if (motionFilter === 'all') return m.status !== 'deleted'; // Show all non-deleted motions
         if (motionFilter === 'active') return (m.status === 'active' || m.status === 'closed') && m.status !== 'deleted'; // Active or Closed, but not Deleted
-        if (motionFilter === 'completed') return m.status === 'completed' || m.status === 'deleted'; // Completed or Deleted
+        if (motionFilter === 'approved') return m.status === 'completed'; // Approved maps to completed status
+        if (motionFilter === 'denied') return m.status === 'denied'; // Denied motions (if used)
         return false; // Should not reach here
     });
 
     const allCount = (committeeData.motions || []).filter((m) => m.status !== 'deleted').length; // All non-deleted motions
     const activeCount = (committeeData.motions || []).filter((m) => (m.status === 'active' || m.status === 'closed') && m.status !== 'deleted').length; // Active or Closed, but not Deleted
-    const completedCount = (committeeData.motions || []).filter((m) => m.status === 'completed' || m.status === 'deleted').length; // Completed or Deleted
+    const approvedCount = (committeeData.motions || []).filter((m) => m.status === 'completed').length; // Approved (completed)
+    const deniedCount = (committeeData.motions || []).filter((m) => m.status === 'denied').length; // Denied (if used)
 
     function viewMotion(motion) {
         try {
             sessionStorage.setItem('motion_' + motion.id, JSON.stringify({ ...motion, committeeId: committeeObj?.id || committeeName, creatorUid: motion.creatorUid }));
-        } catch (e) {}
+        } catch (e) { }
         navigate(`/motions?id=${motion.id}`);
     }
 
@@ -291,7 +293,8 @@ export default function Committee() {
                         <div className="motion-filters">
                             <button className={`filter-btn ${motionFilter === 'all' ? 'active' : ''}`} onClick={() => setMotionFilter('all')}>All</button>
                             <button className={`filter-btn ${motionFilter === 'active' ? 'active' : ''}`} onClick={() => setMotionFilter('active')}>Active ({activeCount})</button>
-                            <button className={`filter-btn ${motionFilter === 'completed' ? 'active' : ''}`} onClick={() => setMotionFilter('completed')}>Completed ({completedCount})</button>
+                            <button className={`filter-btn ${motionFilter === 'approved' ? 'active' : ''}`} onClick={() => setMotionFilter('approved')}>Approved ({approvedCount})</button>
+                            <button className={`filter-btn ${motionFilter === 'denied' ? 'active' : ''}`} onClick={() => setMotionFilter('denied')}>Denied ({deniedCount})</button>
                         </div>
                         <div className="motions-list">
                             {filteredMotions.length === 0 ? (
@@ -299,41 +302,41 @@ export default function Committee() {
                             ) : (
                                 filteredMotions.map((motion) => (
                                     <div key={motion.id} className="motion-card">
-                                            <div className="motion-card-header">
-                                                <div className="motion-card-title-wrap">
-                                                    <h3 className="motion-title">{motion.name}</h3>
-                                                    {motion.status === 'active' && (
-                                                        <span className="motion-badge">Active</span>
-                                                    )}
-                                                </div>
-                                                <div className="motion-card-actions-top">
-                                                    {motion.status === 'active' && isCommitteeOwner && (
-                                                        <button className="close-voting-btn" onClick={() => handleCloseMotionVoting(motion.id)}>Close Voting</button>
-                                                    )}
-                                                    {(auth.currentUser?.uid === motion.creatorUid || isCommitteeOwner) && motion.status !== 'deleted' && (
-                                                        <button className="delete-motion-btn" onClick={() => handleDeleteMotion(motion.id)}>Delete</button>
-                                                    )}
-                                                    {motion.status === 'closed' && isCommitteeOwner && (
-                                                        <button className="approve-motion-btn" onClick={() => handleApproveMotion(motion.id)}>Approve</button>
-                                                    )}
-                                                </div>
+                                        <div className="motion-card-header">
+                                            <div className="motion-card-title-wrap">
+                                                <h3 className="motion-title">{motion.name}</h3>
+                                                {motion.status === 'active' && (
+                                                    <span className="motion-badge">Active</span>
+                                                )}
                                             </div>
-
-                                            <p className="motion-desc">{motion.description}</p>
-
-                                            <div className="motion-card-footer">
-                                                <div className="motion-meta">
-                                                    <div className="motion-avatar">{(motion.creator || '').split(' ').map(s => s[0]).slice(0,2).join('').toUpperCase()}</div>
-                                                    <div className="motion-meta-text">
-                                                        <div className="creator">{motion.creator}</div>
-                                                        <div className="date">{motion.date}</div>
-                                                    </div>
-                                                </div>
-                                                <div className="motion-card-footer-right">
-                                                    <button className="view-details-btn" onClick={() => viewMotion(motion)}>View Details</button>
-                                                </div>
+                                            <div className="motion-card-actions-top">
+                                                {motion.status === 'active' && isCommitteeOwner && (
+                                                    <button className="close-voting-btn" onClick={() => handleCloseMotionVoting(motion.id)}>Close Voting</button>
+                                                )}
+                                                {(auth.currentUser?.uid === motion.creatorUid || isCommitteeOwner) && motion.status !== 'deleted' && (
+                                                    <button className="delete-motion-btn" onClick={() => handleDeleteMotion(motion.id)}>Delete</button>
+                                                )}
+                                                {motion.status === 'closed' && isCommitteeOwner && (
+                                                    <button className="approve-motion-btn" onClick={() => handleApproveMotion(motion.id)}>Approve</button>
+                                                )}
                                             </div>
                                         </div>
+
+                                        <p className="motion-desc">{motion.description}</p>
+
+                                        <div className="motion-card-footer">
+                                            <div className="motion-meta">
+                                                <div className="motion-avatar">{(motion.creator || '').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()}</div>
+                                                <div className="motion-meta-text">
+                                                    <div className="creator">{motion.creator}</div>
+                                                    <div className="date">{motion.date}</div>
+                                                </div>
+                                            </div>
+                                            <div className="motion-card-footer-right">
+                                                <button className="view-details-btn" onClick={() => viewMotion(motion)}>View Details</button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 ))
                             )}
                         </div>
@@ -344,18 +347,18 @@ export default function Committee() {
                         <div className="members-card">
                             <table className="members-table">
                                 <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Position</th>
-                                </tr>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Position</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
-                                {(committeeData.members || []).map((member, idx) => (
-                                    <tr key={member.uid || idx}>
-                                        <td className="member-name">{member.displayName || member.uid}</td>
-                                        <td className="member-pos">{member.role || 'Member'}</td>
-                                    </tr>
-                                ))}
+                                    {(committeeData.members || []).map((member, idx) => (
+                                        <tr key={member.uid || idx}>
+                                            <td className="member-name">{member.displayName || member.uid}</td>
+                                            <td className="member-pos">{member.role || 'Member'}</td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
