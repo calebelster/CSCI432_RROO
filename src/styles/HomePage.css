@@ -252,6 +252,23 @@ body {
     font-family: var(--font);
 }
 
+.committee-motions-count {
+    font-size: 0.95rem;
+    color: var(--text);
+    opacity: 0.95;
+    margin-right: 8px;
+}
+
+/* header variant for the count placed next to the three-dot menu */
+.committee-motions-count.header-count {
+    font-size: 0.95rem;
+    color: var(--text);
+    opacity: 0.9;
+    background: transparent;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
 
 
 /* more menu on committee cards and confirm modal */

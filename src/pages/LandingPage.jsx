@@ -27,13 +27,60 @@ function LandingPage() {
                 </div>
             </main>
             <div className="info-grid">
-                <div className="info-box">Box 1</div>
-                <div className="info-box">Box 2</div>
-                <div className="info-box">Box 3</div>
-                <div className="info-box">Box 4</div>
-                <div className="info-box">Box 5</div>
-                <div className="info-box">Box 6</div>
+                <div className="info-box">
+                    <div className="icon">👥</div>
+                    <div className="info-title">Committee Management</div>
+                    <div className="info-text">Create and manage committees with role-based access control</div>
+                </div>
+                <div className="info-box">
+                    <div className="icon">📄</div>
+                    <div className="info-title">Motion Management</div>
+                    <div className="info-text">Raise, discuss, and vote on motions</div>
+                </div>
+                <div className="info-box">
+                    <div className="icon">🗳️</div>
+                    <div className="info-title">Voting System</div>
+                    <div className="info-text">Anonymous or recorded voting</div>
+                </div>
+                <div className="info-box">
+                    <div className="icon">💬</div>
+                    <div className="info-title">Discussions</div>
+                    <div className="info-text">Give your thoughts on whether you support a motion</div>
+                </div>
+                <div className="info-box">
+                    <div className="icon">🔒</div>
+                    <div className="info-title">Role-based Permissions</div>
+                    <div className="info-text">Owner, Chair, Member, and Observer roles</div>
+                </div>
+                {/* Parliamentary Procedure box removed per request */}
             </div>
+
+            <section className="how-section">
+                <h2>How It Works</h2>
+                <p className="how-sub">Simple steps to get your committee running smoothly</p>
+                <div className="how-steps">
+                    <div className="how-step">
+                        <div className="step-num">1</div>
+                        <div className="step-title">Create Committee</div>
+                        <div className="step-desc">Set up your committee and invite members</div>
+                    </div>
+                    <div className="how-step">
+                        <div className="step-num">2</div>
+                        <div className="step-title">Assign Roles</div>
+                        <div className="step-desc">Designate chairs, members, and observers</div>
+                    </div>
+                    <div className="how-step">
+                        <div className="step-num">3</div>
+                        <div className="step-title">Raise Motions</div>
+                        <div className="step-desc">Submit motions for discussion and voting</div>
+                    </div>
+                    <div className="how-step">
+                        <div className="step-num">4</div>
+                        <div className="step-title">Vote</div>
+                        <div className="step-desc">Vote on motions</div>
+                    </div>
+                </div>
+            </section>
         </>
     );
 }
