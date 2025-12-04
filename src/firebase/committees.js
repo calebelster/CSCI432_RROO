@@ -39,8 +39,47 @@ export async function addMemberToCommittee(
 
 // Change a user's role inside a committee
 export async function setMemberRole(committeeId, userUid, role) {
+    const committeeRef = doc(db, 'committees', committeeId);
     const memberRef = doc(db, 'committees', committeeId, 'members', userUid);
-    await updateDoc(memberRef, { role });
+
+    return runTransaction(db, async tx => {
+        // Read committee and (if present) previous owner member doc first
+        const committeeSnap = await tx.get(committeeRef);
+        if (!committeeSnap.exists()) throw new Error('Committee not found');
+
+        const committeeData = committeeSnap.data();
+        const prevOwnerUid = committeeData.ownerUid;
+
+        // Prevent demoting the current owner to a non-owner role without assigning a new owner
+        // If caller is trying to change the role of the current owner to something else (not 'owner'),
+        // disallow — this avoids leaving a committee with no owner.
+        if (prevOwnerUid && userUid === prevOwnerUid && role !== 'owner') {
+            throw new Error('Cannot demote the committee owner without assigning a new owner first');
+        }
+
+        let prevOwnerMemberRef = null;
+        let prevOwnerSnap = null;
+        if (prevOwnerUid) {
+            prevOwnerMemberRef = doc(db, 'committees', committeeId, 'members', prevOwnerUid);
+            try {
+                prevOwnerSnap = await tx.get(prevOwnerMemberRef);
+            } catch (e) {
+                prevOwnerSnap = null;
+            }
+        }
+
+        // All reads are done — now perform writes. Use tx.set with merge to avoid failures
+        tx.set(memberRef, { role }, { merge: true });
+
+        // If assigning a new owner, update the committee ownerUid and demote previous owner
+        if (role === 'owner' && prevOwnerUid !== userUid) {
+            tx.update(committeeRef, { ownerUid: userUid });
+
+            if (prevOwnerSnap && prevOwnerSnap.exists()) {
+                tx.update(prevOwnerMemberRef, { role: 'member' });
+            }
+        }
+    });
 }
 
 // Reply to motion (discussion)
@@ -74,6 +113,8 @@ export async function castVote(
     { choice, anonymous = false }
 ) {
     if (!auth.currentUser) throw new Error('Not signed in');
+
+
 
     const voteRef = doc(
         db,
@@ -365,6 +406,25 @@ export async function generateUniqueInviteCode(committeeId) {
 }
 
 /**
+ * Update committee settings (partial). Only owner/chair should call this from client.
+ * This function writes fields under `settings.<key>` to avoid overwriting other settings.
+ */
+export async function updateCommitteeSettings(committeeId, updates = {}) {
+    if (!auth.currentUser) throw new Error('Not signed in');
+    if (!committeeId) throw new Error('No committeeId provided');
+
+    const ref = doc(db, 'committees', committeeId);
+    const payload = {};
+    Object.keys(updates || {}).forEach(k => {
+        payload[`settings.${k}`] = updates[k];
+    });
+    payload.updatedAt = serverTimestamp();
+
+    await updateDoc(ref, payload);
+    return true;
+}
+
+/**
  * Join a committee by code.
  */
 export async function joinCommitteeByCode(rawCode) {
@@ -428,6 +488,17 @@ export async function createMotion(committeeId, motionPayload) {
 export async function deleteMotion(committeeId, motionId) {
     const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
     await updateDoc(motionRef, { status: 'deleted' });
+}
+
+// Delete a committee document. Note: this removes the committee document but
+// does not recursively delete subcollections (Firestore does not support
+// recursive deletes from the client). Consider a Cloud Function or admin
+// script for a full cleanup if needed.
+export async function deleteCommittee(committeeId) {
+    if (!auth.currentUser) throw new Error('Not signed in');
+    const ref = doc(db, 'committees', committeeId);
+    await deleteDoc(ref);
+    return true;
 }
 
 export async function approveMotion(committeeId, motionId) {

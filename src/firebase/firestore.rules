@@ -31,8 +31,8 @@ service cloud.firestore {
       allow get, list: if isSignedIn()
         && isMember(committeeId, request.auth.uid);
 
-      // Update/delete: only owner or chair, and only on safe fields
-      allow update, delete: if isSignedIn()
+      // Update: owner or chair can update certain safe fields. Only owner may change inviteCode.
+      allow update: if isSignedIn()
         && (memberRole(committeeId, request.auth.uid) in ['owner', 'chair'])
         && request.resource.data.diff(resource.data)
              .affectedKeys()
@@ -41,7 +41,15 @@ service cloud.firestore {
                'description',
                'settings',
                'inviteCode'
-             ]);
+             ])
+        && (
+          // If inviteCode is being modified, only owner can do that
+          (request.resource.data.inviteCode == resource.data.inviteCode)
+          || (memberRole(committeeId, request.auth.uid) == 'owner')
+        );
+
+      // Delete: only owner may delete a committee
+      allow delete: if isSignedIn() && memberRole(committeeId, request.auth.uid) == 'owner';
 
       match /members/{memberId} {
         // Members list readable by members
@@ -49,10 +57,15 @@ service cloud.firestore {
           && isMember(committeeId, request.auth.uid);
 
         // Add/change membership by owner or chair; user can remove themself
+        // Only the owner may assign the 'owner' role to a member.
         allow create, update, delete: if isSignedIn()
           && (
             memberRole(committeeId, request.auth.uid) in ['owner', 'chair']
             || request.auth.uid == memberId
+          )
+          && (
+            // Prevent chairs/users from assigning the 'owner' role
+            !(request.resource.data.role == 'owner' && memberRole(committeeId, request.auth.uid) != 'owner')
           );
       }
 

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/HomePage.css';
-import { createCommittee, joinCommitteeByCode } from '../firebase/committees';
+import { createCommittee, joinCommitteeByCode, deleteCommittee } from '../firebase/committees';
 import { db } from '../firebase/firebase';
 import { collectionGroup, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 
@@ -229,14 +229,26 @@ function HomePage({ currentUser }) {
         navigate(`/committee?name=${committeeName}`);
     }
 
-    function handleDeleteCommittee(committee) {
+    async function handleDeleteCommittee(committee) {
         const ok = window.confirm(
-            `Delete committee "${committee.name}"? This will remove all local data for this committee.`
+            `Delete committee "${committee.name}"? This will remove this committee from the server and local UI.`
         );
         if (!ok) return;
+
+        // If we have a backend id, try to delete it in Firestore; otherwise just remove locally
+        if (committee.id) {
+            try {
+                await deleteCommittee(committee.id);
+            } catch (err) {
+                console.error('Failed to delete committee on server:', err);
+                alert('Failed to delete committee: ' + (err.message || err));
+                // fall back to removing local UI so user sees immediate effect
+            }
+        }
+
         setHomeData(prev => {
             const committees = (prev.committees || []).filter(
-                c => c.name !== committee.name
+                c => c.id !== committee.id && c.name !== committee.name
             );
             const committeeData = { ...(prev.committeeData || {}) };
             if (committeeData[committee.name]) {

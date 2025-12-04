@@ -5,11 +5,16 @@ import '../styles/Committee.css';
 import {
     createMotion,
     deleteMotion,
+    deleteCommittee,
     approveMotion,
     closeMotionVoting,
     generateUniqueInviteCode,
+    setMemberRole,
+    updateCommitteeSettings,
 } from '../firebase/committees';
+import CommitteeSettings from '../components/CommitteeSettings';
 import { db, auth } from '../firebase/firebase';
+import { useAuth } from '../contexts/authContexts';
 import {
     collection,
     doc,
@@ -66,7 +71,7 @@ export default function Committee() {
         requiresDiscussion: true,
         secondRequired: true,
         allowAnonymous: false,
-        isSpecial: false,
+        // `isSpecial` removed; use `motionType === 'special'` instead
         parentMotionId: null,
     });
     const [showInvite, setShowInvite] = useState(false);
@@ -74,6 +79,14 @@ export default function Committee() {
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [creatingMotion, setCreatingMotion] = useState(false);
     const [inviteCode, setInviteCode] = useState('');
+    const [changingRoleFor, setChangingRoleFor] = useState(null);
+    const [roleChangePending, setRoleChangePending] = useState(null);
+    const [showRoleConfirm, setShowRoleConfirm] = useState(false);
+    // Delete motion confirmation
+    const [showDeleteMotionConfirm, setShowDeleteMotionConfirm] = useState(false);
+    const [deleteTargetMotionId, setDeleteTargetMotionId] = useState(null);
+    const [deleteTargetMotionName, setDeleteTargetMotionName] = useState('');
+    const [settingsUpdatedAt, setSettingsUpdatedAt] = useState(0);
 
     useEffect(() => {
         setCommitteeName(getCommitteeName());
@@ -186,7 +199,7 @@ export default function Committee() {
                                 status: md.status || 'active',
                                 type: md.type || '',
                                 kind: md.kind || 'standard',
-                                threshold: md.voteThreshold || 'Simple Majority',
+                                threshold: md.threshold || md.voteThreshold || 'Simple Majority',
                                 requiresDiscussion: !!md.requiresDiscussion,
                                 secondRequired: !!md.secondRequired,
                                 discussionStyle: md.discussionStyle || 'Offline',
@@ -242,8 +255,11 @@ export default function Committee() {
         const defaults = committeeObj?.data?.settings || {};
         setForm(prev => ({
             ...prev,
-            secondRequired: defaults.secondRequired ?? prev.secondRequired,
-            allowAnonymous: defaults.allowAnonymous ?? prev.allowAnonymous,
+            // Committee settings key changed names historically — accept either key
+            secondRequired: (defaults.requireSecond ?? defaults.secondRequired) ?? prev.secondRequired,
+            // Committee settings use `allowAnonymousVoting`; fall back to legacy `allowAnonymous` if present
+            allowAnonymous: (defaults.allowAnonymousVoting ?? defaults.allowAnonymous) ?? prev.allowAnonymous,
+            voteThreshold: defaults.defaultVoteThreshold ?? prev.voteThreshold,
         }));
         setShowModal(true);
     }
@@ -258,7 +274,7 @@ export default function Committee() {
             requiresDiscussion: true,
             secondRequired: true,
             allowAnonymous: false,
-            isSpecial: false,
+                // isSpecial assignment removed
             parentMotionId: null,
         });
     }
@@ -280,7 +296,8 @@ export default function Committee() {
             kind: form.motionType,
             threshold: form.voteThreshold,
             anonymousVotes: !!form.allowAnonymous,
-            requiresDiscussion: form.isSpecial ? false : form.requiresDiscussion,
+            // Special motions should not allow discussion
+            requiresDiscussion: form.motionType === 'special' ? false : form.requiresDiscussion,
             secondRequired: !!form.secondRequired,
             allowAnonymous: !!form.allowAnonymous,
             ...(form.motionType === 'sub' && { parentMotionId: form.parentMotionId }),
@@ -368,13 +385,12 @@ export default function Committee() {
     }
 
     async function handleDeleteMotion(motionId) {
-        if (!window.confirm('Are you sure you want to delete this motion?')) return;
-        try {
-            await deleteMotion(committeeObj.id, motionId);
-        } catch (err) {
-            console.error('Failed to delete motion:', err);
-            alert('Failed to delete motion: ' + err.message);
-        }
+        // open confirmation modal instead of immediate deletion
+        setDeleteTargetMotionId(motionId);
+        setDeleteTargetMotionName(
+            (committeeData.motions || []).find(m => m.id === motionId)?.name || ''
+        );
+        setShowDeleteMotionConfirm(true);
     }
 
     async function handleCloseMotionVoting(motionId) {
@@ -402,15 +418,27 @@ export default function Committee() {
     }
 
     function performDelete() {
-        navigate('/home');
+        // perform actual deletion of committee from Firestore
+        (async () => {
+            try {
+                if (committeeObj?.id) {
+                    await deleteCommittee(committeeObj.id);
+                }
+            } catch (err) {
+                console.error('Failed to delete committee:', err);
+                alert('Failed to delete committee: ' + (err.message || err));
+                return;
+            }
+            navigate('/home');
+        })();
     }
 
-    const isCommitteeOwner =
-        auth.currentUser && committeeObj?.data?.ownerUid === auth.currentUser.uid;
+    const { currentUser } = useAuth();
+    const isCommitteeOwner = currentUser && committeeObj?.data?.ownerUid === currentUser.uid;
     const isChair =
-        auth.currentUser &&
+        currentUser &&
         committeeData.members?.some(
-            m => m.uid === auth.currentUser.uid && m.role === 'chair'
+            m => m.uid === currentUser.uid && m.role === 'chair'
         );
     const isOwnerOrChair = isCommitteeOwner || isChair;
 
@@ -458,15 +486,17 @@ export default function Committee() {
                         </button>
                         {showMenu && (
                             <div className="more-menu-dropdown">
-                                <button
-                                    className="more-item"
-                                    onClick={() => {
-                                        setConfirmDelete(true);
-                                        setShowMenu(false);
-                                    }}
-                                >
-                                    Delete Committee
-                                </button>
+                                {isCommitteeOwner && (
+                                    <button
+                                        className="more-item"
+                                        onClick={() => {
+                                            setConfirmDelete(true);
+                                            setShowMenu(false);
+                                        }}
+                                    >
+                                        Delete Committee
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -492,6 +522,14 @@ export default function Committee() {
                 >
                     Decisions
                 </button>
+                {isOwnerOrChair && (
+                    <button
+                        className={`tab ${activeTab === 'settings' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('settings')}
+                    >
+                        Settings
+                    </button>
+                )}
             </div>
 
             <div className="tab-content">
@@ -667,13 +705,50 @@ export default function Committee() {
                                                 </div>
                                             </td>
                                             <td className="member-pos">
-                                                <div className="role-badge position-badge">
-                                                    {member.role === 'owner'
-                                                        ? 'Owner'
-                                                        : member.role === 'chair'
-                                                            ? 'Chair'
-                                                            : member.role}
-                                                </div>
+                                                {(
+                                                    // Owner can change anyone's role; chair can change non-owner roles but cannot assign owner
+                                                    isCommitteeOwner || isChair
+                                                ) ? (
+                                                    <select
+                                                        value={member.role || 'member'}
+                                                        disabled={changingRoleFor === member.uid}
+                                                        onChange={(e) => {
+                                                            const newRole = e.target.value;
+                                                            if (!committeeObj?.id) return;
+
+                                                            // If current user is chair, prevent assigning 'owner'
+                                                            if (isChair && !isCommitteeOwner && newRole === 'owner') {
+                                                                alert('Only the committee owner can assign ownership.');
+                                                                return;
+                                                            }
+
+                                                            // Prevent owner from demoting themself directly; they must transfer ownership instead
+                                                            if (member.uid === currentUser?.uid && newRole !== 'owner') {
+                                                                alert('You cannot demote yourself. Transfer ownership to another member first.');
+                                                                return;
+                                                            }
+
+                                                            // If role did not change, do nothing
+                                                            if ((member.role || 'member') === newRole) return;
+
+                                                            // Queue the change and show confirmation dialog for owners
+                                                            setRoleChangePending({ member, newRole });
+                                                            setShowRoleConfirm(true);
+                                                        }}
+                                                    >
+                                                        {isCommitteeOwner && <option value="owner">Owner</option>}
+                                                        <option value="chair">Chair</option>
+                                                        <option value="member">Member</option>
+                                                    </select>
+                                                ) : (
+                                                    <div className="role-badge position-badge">
+                                                        {member.role === 'owner'
+                                                            ? 'Owner'
+                                                            : member.role === 'chair'
+                                                                ? 'Chair'
+                                                                : member.role}
+                                                    </div>
+                                                )}
                                             </td>
                                         </tr>
                                     );
@@ -681,6 +756,20 @@ export default function Committee() {
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                )}
+
+                {activeTab === 'settings' && isOwnerOrChair && (
+                    <div className="settings-section">
+                        <CommitteeSettings
+                            committeeId={committeeObj?.id}
+                            currentSettings={committeeObj?.data?.settings || {}}
+                            onUpdated={s => {
+                                // optimistic update local committee object
+                                setCommitteeObj(prev => prev ? { ...prev, data: { ...prev.data, settings: { ...prev.data.settings, ...s } } } : prev);
+                                setSettingsUpdatedAt(Date.now());
+                            }}
+                        />
                     </div>
                 )}
 
@@ -858,70 +947,68 @@ export default function Committee() {
                                 />
                             </div>
 
-                            {form.motionType !== 'special' && (
-                                <>
-                                    <div className="form-row">
-                                        <label className="form-label">Vote Threshold</label>
-                                        <select
-                                            value={form.voteThreshold}
-                                            onChange={e =>
-                                                setForm({ ...form, voteThreshold: e.target.value })
-                                            }
-                                            className="form-select"
-                                        >
-                                            <option value="Simple Majority">
-                                                Simple Majority (&gt;50% of votes cast)
-                                            </option>
-                                            <option value="Two-Thirds">
-                                                Two-Thirds (≈66% of votes)
-                                            </option>
-                                            <option value="Unanimous">
-                                                Unanimous (All Yes)
-                                            </option>
-                                        </select>
-                                    </div>
+                            <>
+                                <div className="form-row">
+                                    <label className="form-label">Vote Threshold</label>
+                                    <select
+                                        value={form.voteThreshold}
+                                        onChange={e =>
+                                            setForm({ ...form, voteThreshold: e.target.value })
+                                        }
+                                        className="form-select"
+                                    >
+                                        <option value="Simple Majority">
+                                            Simple Majority (&gt;50% of votes cast)
+                                        </option>
+                                        <option value="Two-Thirds">
+                                            Two-Thirds (≈66% of votes)
+                                        </option>
+                                        <option value="Unanimous">
+                                            Unanimous (All Yes)
+                                        </option>
+                                    </select>
+                                </div>
 
-                                    <div className="committee-settings">
-                                        <div className="settings-title">Motion Settings</div>
-                                        <div className="settings-list">
-                                            <div className="form-row">
-                                                <label className="form-label">Second Required</label>
-                                                <label className="switch">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={form.secondRequired}
-                                                        onChange={e =>
-                                                            setForm({
-                                                                ...form,
-                                                                secondRequired: e.target.checked,
-                                                            })
-                                                        }
-                                                    />
-                                                    <span className="switch-slider" />
-                                                </label>
-                                            </div>
-                                            <div className="form-row">
-                                                <label className="form-label">
-                                                    Allow Anonymous Voting
-                                                </label>
-                                                <label className="switch">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={form.allowAnonymous}
-                                                        onChange={e =>
-                                                            setForm({
-                                                                ...form,
-                                                                allowAnonymous: e.target.checked,
-                                                            })
-                                                        }
-                                                    />
-                                                    <span className="switch-slider" />
-                                                </label>
-                                            </div>
+                                <div className="committee-settings">
+                                    <div className="settings-title">Motion Settings</div>
+                                    <div className="settings-list">
+                                        <div className="form-row">
+                                            <label className="form-label">Second Required</label>
+                                            <label className="switch">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={form.secondRequired}
+                                                    onChange={e =>
+                                                        setForm({
+                                                            ...form,
+                                                            secondRequired: e.target.checked,
+                                                        })
+                                                    }
+                                                />
+                                                <span className="switch-slider" />
+                                            </label>
+                                        </div>
+                                        <div className="form-row">
+                                            <label className="form-label">
+                                                Allow Anonymous Voting
+                                            </label>
+                                            <label className="switch">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={form.allowAnonymous}
+                                                    onChange={e =>
+                                                        setForm({
+                                                            ...form,
+                                                            allowAnonymous: e.target.checked,
+                                                        })
+                                                    }
+                                                />
+                                                <span className="switch-slider" />
+                                            </label>
                                         </div>
                                     </div>
-                                </>
-                            )}
+                                </div>
+                            </>
 
                             {form.motionType === 'special' && (
                                 <div className="form-row">
@@ -986,6 +1073,133 @@ export default function Committee() {
                                 }}
                             >
                                 Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showDeleteMotionConfirm && (
+                <div
+                    className="confirm-overlay"
+                    onClick={e => {
+                        if (
+                            typeof e.target.className === 'string' &&
+                            e.target.className.includes('confirm-overlay')
+                        ) {
+                            setShowDeleteMotionConfirm(false);
+                            setDeleteTargetMotionId(null);
+                            setDeleteTargetMotionName('');
+                        }
+                    }}
+                >
+                    <div className="confirm-content">
+                        <h3>Delete motion?</h3>
+                        <p>
+                            Are you sure you want to delete <strong>{deleteTargetMotionName || deleteTargetMotionId}</strong>?
+                            This will mark the motion as deleted and it will no longer be available.
+                        </p>
+                        <div className="confirm-actions">
+                            <button
+                                className="confirm-cancel"
+                                onClick={() => {
+                                    setShowDeleteMotionConfirm(false);
+                                    setDeleteTargetMotionId(null);
+                                    setDeleteTargetMotionName('');
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="confirm-delete"
+                                onClick={async () => {
+                                    if (!deleteTargetMotionId) return;
+                                    setShowDeleteMotionConfirm(false);
+                                    try {
+                                        await deleteMotion(committeeObj.id, deleteTargetMotionId);
+                                    } catch (err) {
+                                        console.error('Failed to delete motion:', err);
+                                        alert('Failed to delete motion: ' + (err?.message || err));
+                                    } finally {
+                                        setDeleteTargetMotionId(null);
+                                        setDeleteTargetMotionName('');
+                                    }
+                                }}
+                            >
+                                Delete Motion
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showRoleConfirm && roleChangePending && (
+                <div
+                    className="confirm-overlay"
+                    onClick={e => {
+                        if (
+                            typeof e.target.className === 'string' &&
+                            e.target.className.includes('confirm-overlay')
+                        ) {
+                            setShowRoleConfirm(false);
+                            setRoleChangePending(null);
+                        }
+                    }}
+                >
+                    <div className="confirm-content">
+                        <h3>Change Role?</h3>
+                        <p>
+                            Change role for <strong>{roleChangePending.member.displayName || roleChangePending.member.email || roleChangePending.member.uid}</strong>
+                            {' '}from <strong>{roleChangePending.member.role || 'member'}</strong> to <strong>{roleChangePending.newRole}</strong>?
+                        </p>
+                        {roleChangePending.newRole === 'owner' && (
+                            <p style={{ color: '#a00' }}>
+                                You are transferring ownership. The previous owner will be demoted to member.
+                            </p>
+                        )}
+                        <div className="confirm-actions">
+                            <button
+                                className="confirm-cancel"
+                                onClick={() => {
+                                    setShowRoleConfirm(false);
+                                    setRoleChangePending(null);
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="confirm-delete"
+                                    onClick={async () => {
+                                    const { member, newRole } = roleChangePending;
+                                    setShowRoleConfirm(false);
+                                    setChangingRoleFor(member.uid);
+                                    try {
+                                        await setMemberRole(committeeObj.id, member.uid, newRole);
+
+                                        // optimistic local update of members
+                                        setCommitteeData(prev => ({
+                                            ...prev,
+                                            members: (prev.members || []).map(m =>
+                                                m.uid === member.uid ? { ...m, role: newRole } : m
+                                            ),
+                                        }));
+
+                                        // if ownership transferred, update local committee owner immediately
+                                        if (newRole === 'owner') {
+                                            setCommitteeObj(prev =>
+                                                prev ? { ...prev, data: { ...prev.data, ownerUid: member.uid } } : prev
+                                            );
+                                        }
+                                    } catch (err) {
+                                        console.error('Failed to change role', err);
+                                        alert('Failed to change role: ' + err.message);
+                                    } finally {
+                                        setChangingRoleFor(null);
+                                        setRoleChangePending(null);
+                                    }
+                                }}
+                            >
+                                Confirm
                             </button>
                         </div>
                     </div>

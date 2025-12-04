@@ -29,10 +29,11 @@ export default function Motions() {
     const [replyInputs, setReplyInputs] = useState({});
     const [replyStances, setReplyStances] = useState({});
     const [committeeOwnerUid, setCommitteeOwnerUid] = useState(null);
+    const [committeeMemberRole, setCommitteeMemberRole] = useState(null);
     const [ownerActionDisabled, setOwnerActionDisabled] = useState({});
     const [selectedTab, setSelectedTab] = useState('overview');
 
-    const [voteAnonymously, setVoteAnonymously] = useState(false);
+    // anonymous vote choice is determined per-motion by `motion.anonymousVotes`
     const [showRecordDecision, setShowRecordDecision] = useState(false);
     const [decisionForm, setDecisionForm] = useState({
         summary: '',
@@ -41,6 +42,8 @@ export default function Motions() {
         recordingUrl: '',
     });
     const [recordingDecision, setRecordingDecision] = useState(false);
+    const [showDenyConfirm, setShowDenyConfirm] = useState(false);
+    const [denyTargetMotionId, setDenyTargetMotionId] = useState(null);
 
     const VOTE_LABELS = { yes: 'Yes', no: 'No', abstain: 'Abstain' };
 
@@ -70,6 +73,22 @@ export default function Motions() {
                 const committeeDoc = await getDoc(doc(db, 'committees', cid));
                 if (committeeDoc.exists()) {
                     setCommitteeOwnerUid(committeeDoc.data().ownerUid);
+                    // fetch current user's member role in this committee (if signed in)
+                    try {
+                        const uid = auth?.currentUser?.uid;
+                        if (uid) {
+                            const memberSnap = await getDoc(
+                                doc(db, 'committees', cid, 'members', uid)
+                            );
+                            if (memberSnap.exists()) {
+                                setCommitteeMemberRole(memberSnap.data().role || null);
+                            } else {
+                                setCommitteeMemberRole(null);
+                            }
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
                 }
             } catch (e) {
                 console.error('Failed to fetch committee owner', e);
@@ -228,6 +247,8 @@ export default function Motions() {
     }, [location.search]);
 
     const isCommitteeOwner = auth.currentUser?.uid === committeeOwnerUid;
+    const isChair = committeeMemberRole === 'chair';
+    const isOwnerOrChair = isCommitteeOwner || isChair;
 
     function evaluateThreshold(m) {
         const yes = m.tally?.yes || 0;
@@ -315,7 +336,6 @@ export default function Motions() {
     }
 
     async function handleDenyMotion(motionId) {
-        if (!window.confirm('Are you sure you want to deny this motion?')) return;
         try {
             setOwnerActionDisabled(prev => ({ ...prev, [motionId]: true }));
             const cid = resolveCommitteeId(motionId);
@@ -329,8 +349,19 @@ export default function Motions() {
         } catch (err) {
             console.error('Failed to deny motion', err);
             setActionMessage({ text: 'Failed to deny', variant: 'error' });
+        } finally {
             setOwnerActionDisabled(prev => ({ ...prev, [motionId]: false }));
+            // clear any pending deny target
+            if (denyTargetMotionId === motionId) {
+                setDenyTargetMotionId(null);
+                setShowDenyConfirm(false);
+            }
         }
+    }
+
+    function requestDenyMotion(motionId) {
+        setDenyTargetMotionId(motionId);
+        setShowDenyConfirm(true);
     }
 
     async function handleCloseMotionVoting(motionId) {
@@ -413,7 +444,7 @@ export default function Motions() {
         setReplyStances(prev => ({ ...prev, [motionId]: 'pro' }));
     }
 
-    async function vote(committeeId, motionId, choice) {
+    async function vote(committeeId, motionId, choice, anonymousFlag) {
         let cid = committeeId;
         if (!cid) {
             try {
@@ -436,19 +467,20 @@ export default function Motions() {
         }
 
         try {
+            const anonymous = !!anonymousFlag;
             await castVote(cid, motionId.toString(), {
                 choice,
-                anonymous: voteAnonymously,
+                anonymous,
             });
             setActionMessage({
-                text: `Vote recorded${voteAnonymously ? ' (anonymous)' : ''}`,
+                text: `Vote recorded${anonymous ? ' (anonymous)' : ''}`,
                 variant: 'success',
             });
             setTimeout(() => setActionMessage(null), 3500);
         } catch (err) {
             console.error('castVote failed', err);
             setActionMessage({
-                text: 'Failed to cast vote',
+                text: err?.message || 'Failed to cast vote',
                 variant: 'error',
             });
             setTimeout(() => setActionMessage(null), 3500);
@@ -897,13 +929,13 @@ export default function Motions() {
                                         {motion.threshold || 'Simple majority required to pass'}
                                     </p>
                                 </div>
-                                {isCommitteeOwner && (
+                                {isOwnerOrChair && (
                                     <button
                                         className="action-btn"
                                         onClick={async () => {
                                             if (disabledFlag) return;
                                             if (passing) await handleApproveMotion(motion.id);
-                                            else await handleDenyMotion(motion.id);
+                                            else requestDenyMotion(motion.id);
                                         }}
                                         aria-pressed={passing}
                                         aria-disabled={disabledFlag}
@@ -959,7 +991,7 @@ export default function Motions() {
                                 </div>
                             </div>
 
-                            {isCommitteeOwner && isFinalStatus && (
+                            {isOwnerOrChair && isFinalStatus && (
                                 <div className="owner-actions">
                                     <button
                                         className="record-decision-btn"
@@ -983,19 +1015,7 @@ export default function Motions() {
                                 Choose your position on this motion
                             </p>
 
-                            {motion.anonymousVotes && !isFinalStatus && (
-                                <div className="anonymous-toggle">
-                                    <label className="switch-inline">
-                                        <input
-                                            type="checkbox"
-                                            checked={voteAnonymously}
-                                            onChange={() => setVoteAnonymously(!voteAnonymously)}
-                                        />
-                                        <span className="switch-slider-small" />
-                                        <span>Vote anonymously</span>
-                                    </label>
-                                </div>
-                            )}
+                            {/* Anonymous voting is determined by the motion's `anonymousVotes` setting; no per-voter toggle */}
 
                             {isFinalStatus ? (
                                 <div className="voting-closed">
@@ -1009,7 +1029,7 @@ export default function Motions() {
                                 <div className="vote-options">
                                     <div
                                         className="vote-option yes-option"
-                                        onClick={() => !isFinalStatus && vote(null, motion.id, 'yes')}
+                                        onClick={() => !isFinalStatus && vote(null, motion.id, 'yes', motion.anonymousVotes)}
                                         role="button"
                                         tabIndex={0}
                                         aria-disabled={isFinalStatus}
@@ -1019,7 +1039,7 @@ export default function Motions() {
                                     </div>
                                     <div
                                         className="vote-option no-option"
-                                        onClick={() => !isFinalStatus && vote(null, motion.id, 'no')}
+                                        onClick={() => !isFinalStatus && vote(null, motion.id, 'no', motion.anonymousVotes)}
                                         role="button"
                                         tabIndex={0}
                                         aria-disabled={isFinalStatus}
@@ -1030,7 +1050,7 @@ export default function Motions() {
                                     <div
                                         className="vote-option abstain-option"
                                         onClick={() =>
-                                            !isFinalStatus && vote(null, motion.id, 'abstain')
+                                            !isFinalStatus && vote(null, motion.id, 'abstain', motion.anonymousVotes)
                                         }
                                         role="button"
                                         tabIndex={0}
@@ -1199,6 +1219,53 @@ export default function Motions() {
                                         Cancel
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {showDenyConfirm && (
+                    <div
+                        className="confirm-overlay"
+                        onClick={e => {
+                            if (
+                                typeof e.target.className === 'string' &&
+                                e.target.className.includes('confirm-overlay')
+                            ) {
+                                setShowDenyConfirm(false);
+                                setDenyTargetMotionId(null);
+                            }
+                        }}
+                    >
+                        <div className="confirm-content">
+                            <h3>Deny motion?</h3>
+                            <p>
+                                Are you sure you want to deny this motion? Denying will mark
+                                the motion as rejected and it will not be discussed further.
+                            </p>
+                            <div className="confirm-actions">
+                                <button
+                                    className="confirm-cancel"
+                                    onClick={() => {
+                                        setShowDenyConfirm(false);
+                                        setDenyTargetMotionId(null);
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="confirm-delete"
+                                    onClick={async () => {
+                                        if (!denyTargetMotionId) return;
+                                        try {
+                                            await handleDenyMotion(denyTargetMotionId);
+                                        } catch (e) {
+                                            console.error('Deny failed', e);
+                                        }
+                                    }}
+                                >
+                                    Confirm Deny
+                                </button>
                             </div>
                         </div>
                     </div>

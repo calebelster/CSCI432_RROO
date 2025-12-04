@@ -16,6 +16,7 @@ import Motions from './pages/Motions.jsx'
 import Profile from './pages/Profile.jsx'
 
 import './styles/index.css'
+import { AuthProvider } from './contexts/authContexts';
 
 
 
@@ -54,6 +55,8 @@ function App() {
 
 ReactDOM.createRoot(document.getElementById('app')).render(
     <React.StrictMode>
-        <App />
+        <AuthProvider>
+            <App />
+        </AuthProvider>
     </React.StrictMode>
 )
