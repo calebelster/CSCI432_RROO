@@ -275,7 +275,7 @@ function HomePage({ currentUser }) {
         <div className="container">
             <header className="header">
                 <div className="header-logo">
-                    <img src="gavellogo.png" alt="logo" />
+                    <img src="gavel_logo.png" alt="logo" />
                     <span>Robert Rules of Order</span>
                 </div>
                 <div
