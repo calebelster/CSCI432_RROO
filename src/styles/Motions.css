@@ -932,13 +932,14 @@ h1 {
 
 .status-stats {
     display: flex;
-    justify-content: center;
+    justify-content: space-around;
     gap: 48px;
     margin: 12px 0 8px 0;
 }
 
 .stat-block {
     text-align: center;
+    flex: 1;
 }
 
 .stat-number {
@@ -1104,6 +1105,42 @@ h1 {
     background: rgba(107, 114, 128, 0.02);
 }
 
+/* Vote icon styling for the vote option boxes */
+.vote-icon {
+    font-size: 32px;
+    font-weight: 500;
+    line-height: 1;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vote-icon.yes-icon {
+    color: #16a34a;
+}
+
+.vote-icon.no-icon {
+    color: #ef4444;
+}
+
+.vote-icon.abstain-icon {
+    color: #6b7280;
+}
+
+/* Color stat blocks to match voting options */
+.stat-block.yes-stat .stat-number {
+    color: #16a34a;
+}
+
+.stat-block.no-stat .stat-number {
+    color: #ef4444;
+}
+
+.stat-block.abstain-stat .stat-number {
+    color: #6b7280;
+}
+
 .vote-record.card {
     padding: 18px 22px;
 }
@@ -1243,7 +1280,7 @@ h1 {
     transition: background 0.2s ease;
 }
 
-.switch-inline input:checked ~ .switch-slider-small {
+.switch-inline input:checked~.switch-slider-small {
     background: var(--color-primary);
 }
 

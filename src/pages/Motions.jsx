@@ -959,15 +959,15 @@ export default function Motions() {
                             </div>
 
                             <div className="status-stats">
-                                <div className="stat-block">
+                                <div className="stat-block yes-stat">
                                     <div className="stat-number">{yes}</div>
                                     <div className="stat-label">Yes</div>
                                 </div>
-                                <div className="stat-block">
+                                <div className="stat-block no-stat">
                                     <div className="stat-number">{no}</div>
                                     <div className="stat-label">No</div>
                                 </div>
-                                <div className="stat-block">
+                                <div className="stat-block abstain-stat">
                                     <div className="stat-number">{abstain}</div>
                                     <div className="stat-label">Abstain</div>
                                 </div>
@@ -1046,7 +1046,7 @@ export default function Motions() {
                                         tabIndex={0}
                                         aria-disabled={isFinalStatus}
                                     >
-                                        <div className="vote-icon" />
+                                        <div className="vote-icon yes-icon">✓</div>
                                         <div className="vote-label">{VOTE_LABELS.yes}</div>
                                     </div>
                                     <div
@@ -1056,7 +1056,7 @@ export default function Motions() {
                                         tabIndex={0}
                                         aria-disabled={isFinalStatus}
                                     >
-                                        <div className="vote-icon" />
+                                        <div className="vote-icon no-icon">✕</div>
                                         <div className="vote-label">{VOTE_LABELS.no}</div>
                                     </div>
                                     <div
@@ -1068,7 +1068,7 @@ export default function Motions() {
                                         tabIndex={0}
                                         aria-disabled={isFinalStatus}
                                     >
-                                        <div className="vote-icon" />
+                                        <div className="vote-icon abstain-icon">−</div>
                                         <div className="vote-label">{VOTE_LABELS.abstain}</div>
                                     </div>
                                 </div>
