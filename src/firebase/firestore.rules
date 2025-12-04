@@ -19,6 +19,9 @@ service cloud.firestore {
     function isMember(committeeId, uid) {
       return exists(/databases/$(database)/documents/committees/$(committeeId)/members/$(uid));
     }
+    function isOwner(committeeId) {
+      return get(/databases/$(database)/documents/committees/$(committeeId)).data.ownerUid == request.auth.uid;
+    }
 
     match /users/{userId} {
       allow create: if isSignedIn() && request.auth.uid == userId;
@@ -27,6 +30,48 @@ service cloud.firestore {
     }
 
     match /committees/{committeeId} {
+      allow create: if isSignedIn() && request.resource.data.ownerUid == request.auth.uid;
+      // read only for members
+      allow get, list: if isSignedIn() && isMember(committeeId, request.auth.uid);
+      // update settings by owner or chair; only owner may delete the committee
+      allow update: if isSignedIn() && (memberRole(committeeId, request.auth.uid) in ['owner', 'chair']);
+      allow delete: if isSignedIn() && isOwner(committeeId);
+
+      match /members/{memberId} {
+        // members list readable by members
+        allow read: if isSignedIn() && isMember(committeeId, request.auth.uid);
+        // Ensure member doc's uid matches path
+        function validMemberDoc() {
+          return request.resource.data.uid == memberId;
+        }
+
+        // Creation rules:
+        // - a user may create their own member doc but may only set role to 'member'
+        // - the committee owner may create any member and assign roles (member/chair)
+        // - chairs may create members but may not assign elevated roles
+        allow create: if isSignedIn() && validMemberDoc() && (
+          // self-join but cannot self-assign elevated roles
+          (request.auth.uid == memberId && request.resource.data.role == 'member') ||
+          // owner can add members and assign roles
+          isOwner(committeeId) ||
+          // chairs may add members, but role must be 'member'
+          (memberRole(committeeId, request.auth.uid) == 'chair' && request.resource.data.role == 'member')
+        );
+
+        // Update rules:
+        // - owner may update any member and change roles
+        // - a member may update their own profile but not their role
+        // - chairs may update member docs but may not change roles
+        allow update: if isSignedIn() && validMemberDoc() && (
+          isOwner(committeeId) ||
+          (request.auth.uid == memberId && request.resource.data.role == resource.data.role) ||
+          (memberRole(committeeId, request.auth.uid) == 'chair' && request.resource.data.role == resource.data.role)
+        );
+
+        // Deletion rules:
+        // - owner may remove any member
+        // - a member may remove themself
+        allow delete: if isSignedIn() && (isOwner(committeeId) || request.auth.uid == memberId);
       // Create: authenticated user creating a committee they own
       allow create: if isSignedIn()
         && request.resource.data.ownerUid == request.auth.uid;
