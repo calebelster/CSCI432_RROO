@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import '../styles/HomePage.css';
 import { createCommittee, joinCommitteeByCode, deleteCommittee } from '../firebase/committees';
 import { db } from '../firebase/firebase';
-import { collectionGroup, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
+import { collection, collectionGroup, query, where, onSnapshot, getDoc, doc } from 'firebase/firestore';
 
 function HomePage({ currentUser }) {
     const navigate = useNavigate();
@@ -149,6 +149,47 @@ function HomePage({ currentUser }) {
 
         return () => unsub();
     }, [currentUser]);
+
+    useEffect(() => {
+        if (!homeData.committees || homeData.committees.length === 0) return;
+
+        const motionUnsubs = homeData.committees.map(committee => {
+            if (!committee.id) return () => { };
+            const motionsRef = collection(db, 'committees', committee.id, 'motions');
+            const q = query(motionsRef, where('status', '==', 'active'));
+
+            return onSnapshot(q, snap => {
+                const activeMotionsCount = snap.docs.length;
+                setHomeData(prev => {
+                    const newCommitteeData = {
+                        ...prev.committeeData,
+                        [committee.name]: {
+                            ...prev.committeeData[committee.name],
+                            motionsCount: activeMotionsCount,
+                        },
+                    };
+
+                    const totalActiveMotions = Object.values(newCommitteeData).reduce(
+                        (acc, data) => acc + (data.motionsCount || 0),
+                        0
+                    );
+
+                    const newStats = [...prev.stats];
+                    newStats[1] = { ...newStats[1], value: totalActiveMotions };
+
+                    return {
+                        ...prev,
+                        committeeData: newCommitteeData,
+                        stats: newStats,
+                    };
+                });
+            });
+        });
+
+        return () => {
+            motionUnsubs.forEach(unsub => unsub());
+        };
+    }, [homeData.committees]);
 
     function handleCreateClick() {
         setModalOpen(true);
