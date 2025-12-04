@@ -148,7 +148,7 @@ export default function Committee() {
                                                 joinedAt: joined,
                                             };
                                         }
-                                    } catch {}
+                                    } catch { }
                                     const joined = m.joinedAt ? formatDateSafe(m.joinedAt) : null;
                                     return { ...m, joinedAt: joined };
                                 })
@@ -274,7 +274,7 @@ export default function Committee() {
             requiresDiscussion: true,
             secondRequired: true,
             allowAnonymous: false,
-                // isSpecial assignment removed
+            // isSpecial assignment removed
             parentMotionId: null,
         });
     }
@@ -535,38 +535,36 @@ export default function Committee() {
             <div className="tab-content">
                 {activeTab === 'motions' && (
                     <div className="motions-section">
-                        <div className="motions-header">
-                            Motions
-                            <div className="motion-filters">
-                                <button
-                                    className={`filter-btn ${motionFilter === 'all' ? 'active' : ''
-                                        }`}
-                                    onClick={() => setMotionFilter('all')}
-                                >
-                                    All ({allCount})
-                                </button>
-                                <button
-                                    className={`filter-btn ${motionFilter === 'active' ? 'active' : ''
-                                        }`}
-                                    onClick={() => setMotionFilter('active')}
-                                >
-                                    Active ({activeCount})
-                                </button>
-                                <button
-                                    className={`filter-btn ${motionFilter === 'approved' ? 'active' : ''
-                                        }`}
-                                    onClick={() => setMotionFilter('approved')}
-                                >
-                                    Approved ({approvedCount})
-                                </button>
-                                <button
-                                    className={`filter-btn ${motionFilter === 'denied' ? 'active' : ''
-                                        }`}
-                                    onClick={() => setMotionFilter('denied')}
-                                >
-                                    Denied ({deniedCount})
-                                </button>
-                            </div>
+                        <div className="motions-header">Motions</div>
+                        <div className="motion-filters">
+                            <button
+                                className={`filter-btn ${motionFilter === 'all' ? 'active' : ''
+                                    }`}
+                                onClick={() => setMotionFilter('all')}
+                            >
+                                All ({allCount})
+                            </button>
+                            <button
+                                className={`filter-btn ${motionFilter === 'active' ? 'active' : ''
+                                    }`}
+                                onClick={() => setMotionFilter('active')}
+                            >
+                                Active ({activeCount})
+                            </button>
+                            <button
+                                className={`filter-btn ${motionFilter === 'approved' ? 'active' : ''
+                                    }`}
+                                onClick={() => setMotionFilter('approved')}
+                            >
+                                Approved ({approvedCount})
+                            </button>
+                            <button
+                                className={`filter-btn ${motionFilter === 'denied' ? 'active' : ''
+                                    }`}
+                                onClick={() => setMotionFilter('denied')}
+                            >
+                                Denied ({deniedCount})
+                            </button>
                         </div>
                         <div className="motions-list">
                             {filteredMotions.length === 0 ? (
@@ -589,8 +587,8 @@ export default function Committee() {
                                                     )}
                                                     {motion.kind === 'overturn' && (
                                                         <span className="motion-badge overturn">
-                              Overturn
-                            </span>
+                                                            Overturn
+                                                        </span>
                                                     )}
                                                 </div>
                                             </div>
@@ -658,101 +656,101 @@ export default function Committee() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                {(committeeData.members || []).map((member, idx) => {
-                                    const display =
-                                        member.displayName ||
-                                        member.email ||
-                                        (member.uid === auth.currentUser?.uid
-                                            ? auth.currentUser.displayName || auth.currentUser.email || 'You'
-                                            : 'Member');
+                                    {(committeeData.members || []).map((member, idx) => {
+                                        const display =
+                                            member.displayName ||
+                                            member.email ||
+                                            (member.uid === auth.currentUser?.uid
+                                                ? auth.currentUser.displayName || auth.currentUser.email || 'You'
+                                                : 'Member');
 
-                                    return (
-                                        <tr key={member.uid || idx}>
-                                            <td className="member-name">
-                                                <div className="member-item">
-                                                    <div className="member-avatar">
-                                                        {member.photoURL ? (
-                                                            <img src={member.photoURL} alt={display} />
-                                                        ) : (
-                                                            <div className="avatar-initials">
-                                                                {display
-                                                                    .split(' ')
-                                                                    .map(s => s[0])
-                                                                    .slice(0, 2)
-                                                                    .join('')
-                                                                    .toUpperCase()}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div className="member-info">
-                                                        <div
-                                                            className="member-main"
-                                                            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}
-                                                        >
-                                                            <div className="member-name-text">{display}</div>
-                                                        </div>
-                                                        <div className="member-sub">
-                                                            {member.email && (
-                                                                <div className="member-email">{member.email}</div>
-                                                            )}
-                                                            {member.joinedAt && (
-                                                                <div className="member-joined">
-                                                                    Joined {member.joinedAt}
+                                        return (
+                                            <tr key={member.uid || idx}>
+                                                <td className="member-name">
+                                                    <div className="member-item">
+                                                        <div className="member-avatar">
+                                                            {member.photoURL ? (
+                                                                <img src={member.photoURL} alt={display} />
+                                                            ) : (
+                                                                <div className="avatar-initials">
+                                                                    {display
+                                                                        .split(' ')
+                                                                        .map(s => s[0])
+                                                                        .slice(0, 2)
+                                                                        .join('')
+                                                                        .toUpperCase()}
                                                                 </div>
                                                             )}
                                                         </div>
+                                                        <div className="member-info">
+                                                            <div
+                                                                className="member-main"
+                                                                style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}
+                                                            >
+                                                                <div className="member-name-text">{display}</div>
+                                                            </div>
+                                                            <div className="member-sub">
+                                                                {member.email && (
+                                                                    <div className="member-email">{member.email}</div>
+                                                                )}
+                                                                {member.joinedAt && (
+                                                                    <div className="member-joined">
+                                                                        Joined {member.joinedAt}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="member-pos">
-                                                {(
-                                                    // Owner can change anyone's role; chair can change non-owner roles but cannot assign owner
-                                                    isCommitteeOwner || isChair
-                                                ) ? (
-                                                    <select
-                                                        value={member.role || 'member'}
-                                                        disabled={changingRoleFor === member.uid}
-                                                        onChange={(e) => {
-                                                            const newRole = e.target.value;
-                                                            if (!committeeObj?.id) return;
+                                                </td>
+                                                <td className="member-pos">
+                                                    {(
+                                                        // Owner can change anyone's role; chair can change non-owner roles but cannot assign owner
+                                                        isCommitteeOwner || isChair
+                                                    ) ? (
+                                                        <select
+                                                            value={member.role || 'member'}
+                                                            disabled={changingRoleFor === member.uid}
+                                                            onChange={(e) => {
+                                                                const newRole = e.target.value;
+                                                                if (!committeeObj?.id) return;
 
-                                                            // If current user is chair, prevent assigning 'owner'
-                                                            if (isChair && !isCommitteeOwner && newRole === 'owner') {
-                                                                alert('Only the committee owner can assign ownership.');
-                                                                return;
-                                                            }
+                                                                // If current user is chair, prevent assigning 'owner'
+                                                                if (isChair && !isCommitteeOwner && newRole === 'owner') {
+                                                                    alert('Only the committee owner can assign ownership.');
+                                                                    return;
+                                                                }
 
-                                                            // Prevent owner from demoting themself directly; they must transfer ownership instead
-                                                            if (member.uid === currentUser?.uid && newRole !== 'owner') {
-                                                                alert('You cannot demote yourself. Transfer ownership to another member first.');
-                                                                return;
-                                                            }
+                                                                // Prevent owner from demoting themself directly; they must transfer ownership instead
+                                                                if (member.uid === currentUser?.uid && newRole !== 'owner') {
+                                                                    alert('You cannot demote yourself. Transfer ownership to another member first.');
+                                                                    return;
+                                                                }
 
-                                                            // If role did not change, do nothing
-                                                            if ((member.role || 'member') === newRole) return;
+                                                                // If role did not change, do nothing
+                                                                if ((member.role || 'member') === newRole) return;
 
-                                                            // Queue the change and show confirmation dialog for owners
-                                                            setRoleChangePending({ member, newRole });
-                                                            setShowRoleConfirm(true);
-                                                        }}
-                                                    >
-                                                        {isCommitteeOwner && <option value="owner">Owner</option>}
-                                                        <option value="chair">Chair</option>
-                                                        <option value="member">Member</option>
-                                                    </select>
-                                                ) : (
-                                                    <div className="role-badge position-badge">
-                                                        {member.role === 'owner'
-                                                            ? 'Owner'
-                                                            : member.role === 'chair'
-                                                                ? 'Chair'
-                                                                : member.role}
-                                                    </div>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                                                // Queue the change and show confirmation dialog for owners
+                                                                setRoleChangePending({ member, newRole });
+                                                                setShowRoleConfirm(true);
+                                                            }}
+                                                        >
+                                                            {isCommitteeOwner && <option value="owner">Owner</option>}
+                                                            <option value="chair">Chair</option>
+                                                            <option value="member">Member</option>
+                                                        </select>
+                                                    ) : (
+                                                        <div className="role-badge position-badge">
+                                                            {member.role === 'owner'
+                                                                ? 'Owner'
+                                                                : member.role === 'chair'
+                                                                    ? 'Chair'
+                                                                    : member.role}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -1169,7 +1167,7 @@ export default function Committee() {
                             </button>
                             <button
                                 className="confirm-delete"
-                                    onClick={async () => {
+                                onClick={async () => {
                                     const { member, newRole } = roleChangePending;
                                     setShowRoleConfirm(false);
                                     setChangingRoleFor(member.uid);
