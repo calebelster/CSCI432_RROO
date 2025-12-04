@@ -14,6 +14,7 @@ export default function Motions() {
     const [replyInputs, setReplyInputs] = useState({});
     const [replyStances, setReplyStances] = useState({});
     const [committeeOwnerUid, setCommitteeOwnerUid] = useState(null); // New state for committee owner UID
+    const [currentUserRole, setCurrentUserRole] = useState(null); // 'owner' | 'chair' | 'member' from sessionStorage
     const [ownerActionDisabled, setOwnerActionDisabled] = useState({}); // map of motionId -> bool to prevent double actions
     const [selectedTab, setSelectedTab] = useState('overview');
 
@@ -35,6 +36,8 @@ export default function Motions() {
             if (raw) {
                 const parsed = JSON.parse(raw);
                 cid = parsed.committeeId || null;
+                // if the Committee view included the user's role, capture it so we can render owner/chair UI
+                if (parsed.userRole) setCurrentUserRole(parsed.userRole);
             }
         } catch (e) { cid = null; }
 
@@ -159,7 +162,9 @@ export default function Motions() {
         return () => unsub();
     }, [location.search]);
 
-    const isCommitteeOwner = auth.currentUser?.uid === committeeOwnerUid;
+    // Determine whether current user is owner or privileged (owner/chair).
+    const isCommitteeOwner = (currentUserRole === 'owner') || (auth.currentUser?.uid === committeeOwnerUid);
+    const isCommitteePrivileged = (currentUserRole === 'owner' || currentUserRole === 'chair') || (auth.currentUser?.uid === committeeOwnerUid);
 
     // Evaluate whether a motion meets its voting threshold
     function evaluateThreshold(m) {
@@ -431,7 +436,7 @@ export default function Motions() {
                         <p className="subtitle">{motion.description || 'Motion details and timeline'}</p>
                     </div>
                     <div className="detail-actions">
-                        <span className="role-badge">Member</span>
+                        <span className="role-badge">{isCommitteeOwner ? 'Owner' : 'Member'}</span>
                     </div>
                 </div>
                 {actionMessage && (
@@ -610,8 +615,8 @@ export default function Motions() {
                                 </div>
                             </div>
 
-                            {/* Owner action button shown only inside the Voting card (top-right) */}
-                            {isCommitteeOwner && (() => {
+                            {/* Owner/chair action button shown only inside the Voting card (top-right) */}
+                            {isCommitteePrivileged && (() => {
                                 const ev = evaluateThreshold(motion);
                                 const disabledFlag = isFinalStatus || Boolean(ownerActionDisabled && ownerActionDisabled[motion.id]);
                                 const handleAction = async () => {
