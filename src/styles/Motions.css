@@ -120,6 +120,21 @@
     background-color: var(--primary-hover-color);
 }
 
+.notice-block {
+    border-left: 4px solid #f59e0b;
+    padding: 12px;
+    background: #fff7ed;
+    color: #92400e;
+}
+
+.vote-locked {
+    padding: 12px;
+    border-radius: 8px;
+    background: #fff7f7;
+    border: 1px solid #fee2e2;
+    color: #991b1b;
+}
+
 /* ensure option elements use project font when available */
 .reply-select option,
 select {
@@ -476,6 +491,36 @@ h1 {
 
 .card-name {
     font-weight: 700;
+}
+
+/* Second motion button and pill */
+.second-motion-btn {
+    background: #fff;
+    border: 1px solid #cfcfcf;
+    color: #111;
+    padding: 6px 12px;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.second-motion-btn:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.second-motion-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.seconded-pill {
+    background: #ecfdf5;
+    color: #047857;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+    border: 1px solid rgba(4, 120, 87, 0.08);
 }
 
 .card-sub {

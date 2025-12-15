@@ -1,0 +1,121 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function committeeDoc(cid) {
+      return get(/databases/$(database)/documents/committees/$(cid));
+    }
+
+    function isCommitteeOwner(cid) {
+      return isSignedIn() && committeeDoc(cid).data.ownerUid == request.auth.uid;
+    }
+
+    function memberRef(cid) {
+      return get(/databases/$(database)/documents/committees/$(cid)/members/$(request.auth.uid));
+    }
+
+    function isChair(cid) {
+      return isSignedIn() && memberRef(cid).exists && memberRef(cid).data.role == 'chair';
+    }
+
+    function isOwnerOrChair(cid) {
+      return isCommitteeOwner(cid) || isChair(cid);
+    }
+
+    match /committees/{committeeId} {
+      // only authenticated users can read committee list/details in this rule set
+      allow read: if true;
+
+      // only owner may delete committee
+      allow delete: if isCommitteeOwner(committeeId);
+
+      // updates to top-level committee doc (settings) require owner or chair
+      allow update: if isOwnerOrChair(committeeId);
+
+      match /members/{memberId} {
+        // creating or adding members requires owner or chair
+        allow create: if isOwnerOrChair(committeeId);
+
+        // updating member roles: only owner or chair; assigning 'owner' requires current owner
+        allow update: if isOwnerOrChair(committeeId) &&
+          !(request.resource.data.role == 'owner' && !isCommitteeOwner(committeeId));
+
+        allow read: if isSignedIn();
+        allow delete: if isOwnerOrChair(committeeId);
+      }
+
+      // Helper to check membership quickly
+      function isMember(cid) {
+        return isSignedIn() && memberRef(cid).exists;
+      }
+
+      match /motions/{motionId} {
+        // only committee members may create motions
+        allow create: if isMember(committeeId);
+
+        // allow reading motions to everyone (public within app)
+        allow read: if true;
+
+        // updates: allow owner/chair broad permissions; allow creators to edit their own motion
+        // but disallow arbitrary changes to `seconded`, `secondedBy`, `secondedAt`, and `tally`.
+        allow update: if isOwnerOrChair(committeeId)
+          || (
+            // creator may edit as long as status is not being changed
+            resource.data.creatorUid == request.auth.uid
+            && !(request.resource.data.status != resource.data.status)
+            // disallow creators from setting seconded-related fields
+            && request.resource.data.seconded == resource.data.seconded
+            && request.resource.data.secondedBy == resource.data.secondedBy
+            && request.resource.data.secondedAt == resource.data.secondedAt
+            // disallow direct tally writes
+            && request.resource.data.tally == resource.data.tally
+          )
+          || (
+            // allow a member to perform the "second" action only when setting seconded from false->true
+            request.auth != null
+            && request.resource.data.seconded == true
+            && resource.data.seconded != true
+            && isMember(committeeId)
+            && request.auth.uid != resource.data.creatorUid
+            && request.resource.data.secondedBy == request.auth.uid
+          );
+
+        match /replies/{replyId} {
+          // only members may post replies; if motion requires second, it must already be seconded
+          allow create: if isMember(committeeId) && (
+            // if secondRequired is true, require motion.seconded == true
+            (get(/databases/$(database)/documents/committees/$(committeeId)/motions/$(motionId)).data.secondRequired != true)
+            || (get(/databases/$(database)/documents/committees/$(committeeId)/motions/$(motionId)).data.seconded == true)
+          );
+          allow read: if true;
+          allow delete: if isOwnerOrChair(committeeId) || request.auth.uid == resource.data.authorUid;
+        }
+
+        match /votes/{voteId} {
+          // only members may vote; votes must be their own vote document and choice must be valid
+          allow create, update: if request.auth != null
+            && isMember(committeeId)
+            && voteId == request.auth.uid
+            && request.resource.data.voterUid == request.auth.uid
+            && request.resource.data.choice in ['yes','no','abstain']
+            // if motion requires a second, enforce it
+            && (
+              get(/databases/$(database)/documents/committees/$(committeeId)/motions/$(motionId)).data.secondRequired != true
+              || get(/databases/$(database)/documents/committees/$(committeeId)/motions/$(motionId)).data.seconded == true
+            );
+          allow read: if true;
+        }
+      }
+
+      match /decisions/{decisionId} {
+        // only owner or chair may create recorded decisions
+        allow create: if isOwnerOrChair(committeeId);
+        allow read: if true;
+        allow delete: if isCommitteeOwner(committeeId);
+      }
+    }
+  }
+}

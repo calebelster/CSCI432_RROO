@@ -89,6 +89,33 @@ export async function replyToMotion(
     { text, stance = 'neutral' }
 ) {
     if (!auth.currentUser) throw new Error('Not signed in');
+    // If the motion requires a second, ensure it has been seconded before allowing replies
+    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
+    const motionSnap = await getDoc(motionRef);
+    if (!motionSnap.exists()) throw new Error('Motion not found');
+    const motionData = motionSnap.data() || {};
+
+    // Determine whether this motion requires a second. If the motion document
+    // does not specify `secondRequired`, fall back to the committee's settings.
+    let requiresSecond = false;
+    if (typeof motionData.secondRequired === 'boolean') {
+        requiresSecond = motionData.secondRequired;
+    } else {
+        try {
+            const committeeSnap = await getDoc(doc(db, 'committees', committeeId));
+            const committeeData = committeeSnap.exists() ? committeeSnap.data() : {};
+            requiresSecond = !!(committeeData.settings && (committeeData.settings.requireSecond ?? committeeData.settings.secondRequired));
+        } catch (e) {
+            requiresSecond = false;
+        }
+    }
+
+    // Only allow discussion when either the motion does not require a second
+    // or it has already been seconded.
+    if (requiresSecond && !motionData.seconded) {
+        throw new Error('This motion requires a second before discussion can begin');
+    }
+
     const repliesCol = collection(
         db,
         'committees',
@@ -103,6 +130,46 @@ export async function replyToMotion(
         text,
         stance,
         createdAt: serverTimestamp(),
+    });
+}
+
+/**
+ * Second a motion. Only committee members may second a motion. Sets
+ * `seconded: true`, `secondedBy`, `secondedByName`, and `secondedAt`.
+ */
+export async function secondMotion(committeeId, motionId) {
+    if (!auth.currentUser) throw new Error('Not signed in');
+
+    // Verify the user is a committee member
+    const memberRef = doc(db, 'committees', committeeId, 'members', auth.currentUser.uid);
+    const memberSnap = await getDoc(memberRef);
+    if (!memberSnap.exists()) throw new Error('Only committee members can second motions');
+
+    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
+
+    return runTransaction(db, async tx => {
+        const mSnap = await tx.get(motionRef);
+        if (!mSnap.exists()) throw new Error('Motion not found');
+        const data = mSnap.data() || {};
+
+        // Prevent the motion creator from seconding their own motion
+        if (data.creatorUid && data.creatorUid === auth.currentUser.uid) {
+            throw new Error('Motion creators cannot second their own motion');
+        }
+
+        if (data.seconded) {
+            // already seconded — no-op
+            return true;
+        }
+
+        tx.update(motionRef, {
+            seconded: true,
+            secondedBy: auth.currentUser.uid,
+            secondedByName: auth.currentUser.displayName || auth.currentUser.email || auth.currentUser.uid,
+            secondedAt: serverTimestamp(),
+        });
+
+        return true;
     });
 }
 
@@ -132,6 +199,24 @@ export async function castVote(
         if (!motionSnap.exists()) throw new Error('Motion not found');
 
         const motionData = motionSnap.data();
+        // If this motion requires a second, do not allow voting until it's seconded.
+        // Fall back to committee settings if the motion document doesn't specify it.
+        let requiresSecond = false;
+        if (typeof motionData.secondRequired === 'boolean') {
+            requiresSecond = motionData.secondRequired;
+        } else {
+            try {
+                const committeeSnap = await getDoc(doc(db, 'committees', committeeId));
+                const committeeData = committeeSnap.exists() ? committeeSnap.data() : {};
+                requiresSecond = !!(committeeData.settings && (committeeData.settings.requireSecond ?? committeeData.settings.secondRequired));
+            } catch (e) {
+                requiresSecond = false;
+            }
+        }
+
+        if (requiresSecond && !motionData.seconded) {
+            throw new Error('This motion requires a second before voting');
+        }
         const counts = { ...(motionData.tally || { yes: 0, no: 0, abstain: 0 }) };
 
         const existingSnap = await tx.get(voteRef);
