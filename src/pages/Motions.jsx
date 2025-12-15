@@ -53,6 +53,11 @@ export default function Motions() {
         const params = new URLSearchParams(location.search);
         const motionId = params.get('id');
 
+        if (!motionId) {
+            setMotions([]);
+            return;
+        }
+
         try {
             const raw = sessionStorage.getItem('motion_' + motionId);
             if (raw) {
@@ -95,91 +100,60 @@ export default function Motions() {
             }
         })();
 
-        const motionsCol = collection(db, 'committees', cid, 'motions');
+        const motionRef = doc(db, 'committees', cid, 'motions', motionId);
+        let replyUnsub = null;
 
-        // Track per-motion reply listeners so we can update replies in real-time
-        const replyUnsubs = {};
+        const unsub = onSnapshot(motionRef, docSnap => {
+            if (docSnap.exists()) {
+                const md = docSnap.data();
+                const motion = {
+                    id: docSnap.id,
+                    title: md.title || md.name || 'Untitled Motion',
+                    description: md.description || '',
+                    creator: md.creatorDisplayName || md.creatorUid || md.creator || '',
+                    creatorDisplayName: md.creatorDisplayName,
+                    creatorUid: md.creatorUid || null,
+                    status: md.status || 'active',
+                    replies: md.replies || [],
+                    tally: md.tally || { yes: 0, no: 0, abstain: 0 },
+                    threshold: md.threshold || md.voteThreshold || 'Simple Majority',
+                    createdAt: md.createdAt || md.created || md.createdat || null,
+                    kind: md.kind || 'standard',
+                    requiresDiscussion: md.requiresDiscussion !== undefined ? !!md.requiresDiscussion : true,
+                    parentMotionId: md.parentMotionId || null,
+                    relatedTo: md.relatedTo || null,
+                    anonymousVotes: !!md.anonymousVotes,
+                    voteThreshold: md.voteThreshold || md.threshold || 'Simple Majority',
+                };
+                setMotions([motion]);
 
-        const unsub = onSnapshot(motionsCol, snap => {
-            try {
-                const raw = snap.docs.map(d => {
-                    const md = d.data();
-                    return {
-                        id: d.id,
-                        title: md.title || md.name || 'Untitled Motion',
-                        description: md.description || '',
-                        creator: md.creatorDisplayName || md.creatorUid || md.creator || '',
-                        creatorDisplayName: md.creatorDisplayName,
-                        creatorUid: md.creatorUid || null,
-                        status: md.status || 'active',
-                        replies: md.replies || [],
-                        tally: md.tally || { yes: 0, no: 0, abstain: 0 },
-                        threshold: md.threshold || md.voteThreshold || 'Simple Majority',
-                        createdAt: md.createdAt || md.created || md.createdat || null,
-                        kind: md.kind || 'standard',
-                        requiresDiscussion: md.requiresDiscussion !== undefined ? !!md.requiresDiscussion : true,
-                        parentMotionId: md.parentMotionId || null,
-                        relatedTo: md.relatedTo || null,
-                        anonymousVotes: !!md.anonymousVotes,
-                        voteThreshold: md.voteThreshold || md.threshold || 'Simple Majority',
-                    };
-                });
+                // cleanup previous reply listener
+                if (replyUnsub) {
+                    try { replyUnsub(); } catch {}
+                }
 
-                // manage reply listeners
-                const currentIds = raw.map(m => m.id);
-                Object.keys(replyUnsubs).forEach(id => {
-                    if (!currentIds.includes(id)) {
-                        try { replyUnsubs[id](); } catch {}
-                        delete replyUnsubs[id];
-                    }
-                });
+                // attach listener for replies
+                try {
+                    const repliesCol = collection(db, 'committees', cid, 'motions', motionId, 'replies');
+                    replyUnsub = onSnapshot(repliesCol, snapR => {
+                        const replies = snapR.docs.map(r => ({ id: r.id, ...r.data() }));
+                        setMotions(prev => prev.map(pm => (pm.id === motionId ? { ...pm, replies } : pm)));
+                    });
+                } catch (e) {
+                    // ignore
+                }
 
-                // set base motions (replies will be updated by listeners)
-                const baseMotions = raw.map(m => ({
-                    id: m.id,
-                    title: m.title,
-                    description: m.description,
-                    creator: m.creator,
-                    creatorUid: m.creatorUid,
-                    status: m.status,
-                    replies: m.replies || [],
-                    votes: [],
-                    tally: m.tally,
-                    threshold: m.threshold,
-                    createdAt: m.createdAt,
-                    kind: m.kind,
-                    requiresDiscussion: m.requiresDiscussion,
-                    parentMotionId: m.parentMotionId,
-                    relatedTo: m.relatedTo,
-                    anonymousVotes: m.anonymousVotes,
-                    voteThreshold: m.voteThreshold,
-                }));
-
-                setMotions(baseMotions);
-
-                // attach listeners for replies (one per motion)
-                raw.forEach(m => {
-                    if (replyUnsubs[m.id]) return;
-                    try {
-                        const repliesCol = collection(db, 'committees', cid, 'motions', m.id, 'replies');
-                        replyUnsubs[m.id] = onSnapshot(repliesCol, snapR => {
-                            const replies = snapR.docs.map(r => ({ id: r.id, ...r.data() }));
-                            setMotions(prev => prev.map(pm => (pm.id === m.id ? { ...pm, replies } : pm)));
-                        });
-                    } catch (e) {
-                        // ignore
-                    }
-                });
-            } catch (e) {
-                console.warn('motions onSnapshot handler failed', e);
+            } else {
+                setMotions([]);
             }
-        }, err => {
-            console.warn('motions listener failed', err);
         });
+
 
         return () => {
             try { unsub(); } catch {}
-            Object.values(replyUnsubs).forEach(u => { try { u(); } catch {} });
+            if (replyUnsub) {
+                try { replyUnsub(); } catch {}
+            }
         };
     }, [location.search]);
 
@@ -247,7 +221,7 @@ export default function Motions() {
                     ? { key: 'approved', label: 'Approved' }
                     : { key: 'denied', label: 'Denied' };
             } catch {
-                return { key: 'denied', label: 'Denied' };
+                return { key: 'closed', label: 'Closed' };
             }
         }
         return { key: 'active', label: 'Active' };
