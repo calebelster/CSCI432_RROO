@@ -10,6 +10,7 @@ import {
     denyMotion,
     recordDecision,
     proposeOverturn,
+    secondMotion,
 } from '../firebase/committees';
 import { db, auth } from '../firebase/firebase';
 import {
@@ -30,7 +31,10 @@ export default function Motions() {
     const [replyStances, setReplyStances] = useState({});
     const [committeeOwnerUid, setCommitteeOwnerUid] = useState(null);
     const [committeeMemberRole, setCommitteeMemberRole] = useState(null);
+    const [isCommitteeMember, setIsCommitteeMember] = useState(false);
+    const [committeeSettings, setCommitteeSettings] = useState(null);
     const [ownerActionDisabled, setOwnerActionDisabled] = useState({});
+    const [seconding, setSeconding] = useState({});
     const [selectedTab, setSelectedTab] = useState('overview');
 
     // anonymous vote choice is determined per-motion by `motion.anonymousVotes`
@@ -77,7 +81,9 @@ export default function Motions() {
             try {
                 const committeeDoc = await getDoc(doc(db, 'committees', cid));
                 if (committeeDoc.exists()) {
-                    setCommitteeOwnerUid(committeeDoc.data().ownerUid);
+                    const cd = committeeDoc.data();
+                    setCommitteeOwnerUid(cd.ownerUid);
+                    setCommitteeSettings(cd.settings || null);
                     // fetch current user's member role in this committee (if signed in)
                     try {
                         const uid = auth?.currentUser?.uid;
@@ -87,8 +93,10 @@ export default function Motions() {
                             );
                             if (memberSnap.exists()) {
                                 setCommitteeMemberRole(memberSnap.data().role || null);
+                                setIsCommitteeMember(true);
                             } else {
                                 setCommitteeMemberRole(null);
+                                setIsCommitteeMember(false);
                             }
                         }
                     } catch (e) {
@@ -115,6 +123,10 @@ export default function Motions() {
                     creatorUid: md.creatorUid || null,
                     status: md.status || 'active',
                     replies: md.replies || [],
+                        seconded: !!md.seconded,
+                        secondedBy: md.secondedBy || null,
+                        secondedAt: md.secondedAt || null,
+                        secondRequired: typeof md.secondRequired === 'boolean' ? md.secondRequired : undefined,
                     tally: md.tally || { yes: 0, no: 0, abstain: 0 },
                     threshold: md.threshold || md.voteThreshold || 'Simple Majority',
                     createdAt: md.createdAt || md.created || md.createdat || null,
@@ -318,16 +330,24 @@ export default function Motions() {
             committeeId = null;
         }
 
+        let replySucceeded = true;
         if (committeeId) {
+            replySucceeded = false;
             try {
                 await replyToMotion(committeeId, motionId.toString(), {
                     text,
                     stance,
                 });
+                replySucceeded = true;
             } catch (err) {
                 console.warn('replyToMotion failed', err);
+                setActionMessage({ text: err?.message || 'Failed to post comment', variant: 'error' });
+                setTimeout(() => setActionMessage(null), 3500);
             }
         }
+
+        // If we attempted to post to the backend and it failed, do not add a local reply.
+        if (committeeId && !replySucceeded) return;
 
         const currentUserName =
             auth?.currentUser?.displayName ||
@@ -475,6 +495,27 @@ export default function Motions() {
         }
     }
 
+    async function handleSecondMotion(motionId) {
+        try {
+            setSeconding(prev => ({ ...prev, [motionId]: true }));
+            const cid = resolveCommitteeId(motionId);
+            if (!cid) {
+                setActionMessage({ text: 'Committee ID not found', variant: 'error' });
+                setTimeout(() => setActionMessage(null), 3500);
+                return;
+            }
+            await secondMotion(cid, motionId.toString());
+            setActionMessage({ text: 'Motion seconded', variant: 'success' });
+            setTimeout(() => setActionMessage(null), 3500);
+        } catch (err) {
+            console.error('secondMotion failed', err);
+            setActionMessage({ text: err?.message || 'Failed to second motion', variant: 'error' });
+            setTimeout(() => setActionMessage(null), 3500);
+        } finally {
+            setSeconding(prev => ({ ...prev, [motionId]: false }));
+        }
+    }
+
     useEffect(() => {
         try {
             const params = new URLSearchParams(location.search);
@@ -523,6 +564,10 @@ export default function Motions() {
 
     if (isDetailView && detailMotion) {
         const motion = detailMotion;
+        const effectiveRequiresSecond =
+            typeof motion.secondRequired === 'boolean'
+                ? motion.secondRequired
+                : !!(committeeSettings?.requireSecond ?? committeeSettings?.secondRequired);
         const statusInfo = getStatusInfo(motion);
         const isFinalStatus =
             statusInfo.key === 'approved' || statusInfo.key === 'denied';
@@ -569,6 +614,21 @@ export default function Motions() {
                     </div>
                     <div className="detail-actions">
                         <span className="role-badge">Member</span>
+                        {effectiveRequiresSecond && !motion.seconded && isCommitteeMember && auth?.currentUser?.uid && auth.currentUser.uid !== motion.creatorUid && (
+                            <button
+                                className="action-btn second-motion-btn"
+                                onClick={async () => {
+                                    if (seconding[motion.id]) return;
+                                    await handleSecondMotion(motion.id);
+                                }}
+                                disabled={!!seconding[motion.id]}
+                            >
+                                {seconding[motion.id] ? 'Seconding...' : 'Second Motion'}
+                            </button>
+                        )}
+                        {motion.seconded && (
+                            <div className="seconded-pill">Seconded</div>
+                        )}
                     </div>
                 </div>
 
@@ -673,6 +733,11 @@ export default function Motions() {
 
                 {selectedTab === 'discussion' && motion.requiresDiscussion && (
                     <div className="discussion-wrapper">
+                        {effectiveRequiresSecond && !motion.seconded && (
+                            <div className="notice-block card" style={{marginBottom:12}}>
+                                <strong>Note:</strong> This motion requires a second before discussion or voting can begin.
+                            </div>
+                        )}
                         <div className="discussion-overview card">
                             <div className="overview-header">
                                 <span className="overview-icon" />
@@ -714,7 +779,7 @@ export default function Motions() {
                                 value={replyInputs[motion.id] || ''}
                                 onChange={e => handleInputChange(motion.id, e.target.value)}
                                 rows={4}
-                                disabled={isFinalStatus}
+                                disabled={isFinalStatus || (effectiveRequiresSecond && !motion.seconded)}
                             />
                             <div className="discussion-controls">
                                 <div className="position-select">
@@ -725,7 +790,7 @@ export default function Motions() {
                                             handleStanceChange(motion.id, e.target.value)
                                         }
                                         className="reply-select"
-                                        disabled={isFinalStatus}
+                                            disabled={isFinalStatus || (effectiveRequiresSecond && !motion.seconded)}
                                     >
                                         <option value="pro">Supporting</option>
                                         <option value="con">Opposing</option>
@@ -736,7 +801,7 @@ export default function Motions() {
                                     <button
                                         onClick={() => addReply(motion.id)}
                                         className="post-comment-btn"
-                                        disabled={isFinalStatus}
+                                            disabled={isFinalStatus || (effectiveRequiresSecond && !motion.seconded)}
                                     >
                                         Post Comment
                                     </button>
@@ -949,39 +1014,46 @@ export default function Motions() {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="vote-options">
-                                    <div
-                                        className="vote-option yes-option"
-                                        onClick={() => !isFinalStatus && vote(null, motion.id, 'yes', motion.anonymousVotes)}
-                                        role="button"
-                                        tabIndex={0}
-                                        aria-disabled={isFinalStatus}
-                                    >
-                                        <div className="vote-icon yes-icon">✓</div>
-                                        <div className="vote-label">{VOTE_LABELS.yes}</div>
-                                    </div>
-                                    <div
-                                        className="vote-option no-option"
-                                        onClick={() => !isFinalStatus && vote(null, motion.id, 'no', motion.anonymousVotes)}
-                                        role="button"
-                                        tabIndex={0}
-                                        aria-disabled={isFinalStatus}
-                                    >
-                                        <div className="vote-icon no-icon">✕</div>
-                                        <div className="vote-label">{VOTE_LABELS.no}</div>
-                                    </div>
-                                    <div
-                                        className="vote-option abstain-option"
-                                        onClick={() =>
-                                            !isFinalStatus && vote(null, motion.id, 'abstain', motion.anonymousVotes)
-                                        }
-                                        role="button"
-                                        tabIndex={0}
-                                        aria-disabled={isFinalStatus}
-                                    >
-                                        <div className="vote-icon abstain-icon">−</div>
-                                        <div className="vote-label">{VOTE_LABELS.abstain}</div>
-                                    </div>
+                                <div>
+                                    {effectiveRequiresSecond && !motion.seconded ? (
+                                        <div className="vote-locked card">
+                                            <div className="locked-title">Voting locked</div>
+                                            <div className="locked-sub">This motion requires a second before voting.</div>
+                                        </div>
+                                    ) : (
+                                        <div className="vote-options">
+                                            <div
+                                                className={`vote-option yes-option ${effectiveRequiresSecond && !motion.seconded ? 'disabled' : ''}`}
+                                                onClick={() => !isFinalStatus && !(effectiveRequiresSecond && !motion.seconded) && vote(null, motion.id, 'yes', motion.anonymousVotes)}
+                                                role="button"
+                                                tabIndex={0}
+                                                aria-disabled={isFinalStatus || (effectiveRequiresSecond && !motion.seconded)}
+                                            >
+                                                <div className="vote-icon yes-icon">✓</div>
+                                                <div className="vote-label">{VOTE_LABELS.yes}</div>
+                                            </div>
+                                            <div
+                                                className={`vote-option no-option ${effectiveRequiresSecond && !motion.seconded ? 'disabled' : ''}`}
+                                                onClick={() => !isFinalStatus && !(effectiveRequiresSecond && !motion.seconded) && vote(null, motion.id, 'no', motion.anonymousVotes)}
+                                                role="button"
+                                                tabIndex={0}
+                                                aria-disabled={isFinalStatus || (effectiveRequiresSecond && !motion.seconded)}
+                                            >
+                                                <div className="vote-icon no-icon">✕</div>
+                                                <div className="vote-label">{VOTE_LABELS.no}</div>
+                                            </div>
+                                            <div
+                                                className={`vote-option abstain-option ${effectiveRequiresSecond && !motion.seconded ? 'disabled' : ''}`}
+                                                onClick={() => !isFinalStatus && !(effectiveRequiresSecond && !motion.seconded) && vote(null, motion.id, 'abstain', motion.anonymousVotes)}
+                                                role="button"
+                                                tabIndex={0}
+                                                aria-disabled={isFinalStatus || (effectiveRequiresSecond && !motion.seconded)}
+                                            >
+                                                <div className="vote-icon abstain-icon">−</div>
+                                                <div className="vote-label">{VOTE_LABELS.abstain}</div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
