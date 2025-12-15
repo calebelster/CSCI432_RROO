@@ -412,15 +412,17 @@ function HomePage({ currentUser }) {
                                                 </button>
                                                 {openMenuFor === committee.name && (
                                                     <div className="more-menu-dropdown">
-                                                        <button
-                                                            className="more-item"
-                                                            onClick={() => {
-                                                                setConfirmDeleteFor(committee.name);
-                                                                setOpenMenuFor(null);
-                                                            }}
-                                                        >
-                                                            Delete
-                                                        </button>
+                                                        {String(committee.role || '').toLowerCase() === 'owner' && (
+                                                            <button
+                                                                className="more-item"
+                                                                onClick={() => {
+                                                                    setConfirmDeleteFor(committee.name);
+                                                                    setOpenMenuFor(null);
+                                                                }}
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
