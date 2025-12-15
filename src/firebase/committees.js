@@ -581,8 +581,20 @@ export async function deleteMotion(committeeId, motionId) {
 // script for a full cleanup if needed.
 export async function deleteCommittee(committeeId) {
     if (!auth.currentUser) throw new Error('Not signed in');
-    const ref = doc(db, 'committees', committeeId);
-    await deleteDoc(ref);
+
+    const committeeRef = doc(db, 'committees', committeeId);
+    const committeeSnap = await getDoc(committeeRef);
+    if (!committeeSnap.exists()) throw new Error('Committee not found');
+
+    const committeeData = committeeSnap.data() || {};
+    const ownerUid = committeeData.ownerUid;
+
+    // Only the committee owner may delete the committee
+    if (!ownerUid || ownerUid !== auth.currentUser.uid) {
+        throw new Error('Only the committee owner may delete this committee');
+    }
+
+    await deleteDoc(committeeRef);
     return true;
 }
 
