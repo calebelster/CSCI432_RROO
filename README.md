@@ -35,18 +35,18 @@ The application is hosted on Netlify and can be accessed here:
 - View a list of all members in a committee.
 - Committee owners and chairs can manage member roles (owner, chair, member).
 
-![Members List](https://i.imgur.com/your-screenshot-3.png)
+![Members List](public/members.png)
 
 ### Decisions
 - Record final decisions for motions that have been completed.
 - Include a summary, pros, cons, and a link to a recording.
 
-![Decisions List](https://i.imgur.com/your-screenshot-4.png)
+![Decisions List](public/decisions.png)
 
 ### Settings
 - Committee owners and chairs can configure committee settings, such as default voting thresholds and whether a "second" is required for motions.
 
-![Committee Settings](https://i.imgur.com/your-screenshot-5.png)
+![Committee Settings](public/settings.png)
 
 ## Backend API
 
