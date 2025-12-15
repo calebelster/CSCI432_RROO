@@ -1,12 +1,12 @@
 [![Netlify Status](https://api.netlify.com/api/v1/badges/a7b55bf7-fc25-4852-9e52-d2e19e08cd57/deploy-status)](https://app.netlify.com/projects/polite-croissant-816eb9/deploys)
 
-# RROO: Robert's Rules of Order Online
+# RROO: Robert's Rules of Order
 
 This web application is designed to facilitate parliamentary procedures based on Robert's Rules of Order. It allows users to manage motions, committees, and user profiles.
 
 ## Video Demo
 
-[Link to YouTube Demo Video](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+[Link to Demo Video](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
 
 ## Live Website
 
