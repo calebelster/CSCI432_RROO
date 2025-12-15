@@ -221,7 +221,7 @@ export default function Motions() {
                     ? { key: 'approved', label: 'Approved' }
                     : { key: 'denied', label: 'Denied' };
             } catch {
-                return { key: 'denied', label: 'Denied' };
+                return { key: 'closed', label: 'Closed' };
             }
         }
         return { key: 'active', label: 'Active' };
