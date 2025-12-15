@@ -339,7 +339,7 @@ export default function Committee() {
                 requiresDiscussion: motionPayload.requiresDiscussion,
                 secondRequired: motionPayload.secondRequired,
                 tally: { yes: 0, no: 0, abstain: 0 },
-                parentMotionId: form.parentMotionId || null,
+                ...(form.motionType === 'sub' && { parentMotionId: form.parentMotionId }),
             };
             setCommitteeData(prev => ({
                 ...prev,
@@ -931,9 +931,16 @@ export default function Committee() {
                                 <label className="form-label">Motion Type</label>
                                 <select
                                     value={form.motionType}
-                                    onChange={e =>
-                                        setForm({ ...form, motionType: e.target.value })
-                                    }
+                                    onChange={e => {
+                                        const newMotionType = e.target.value;
+                                        setForm(prevForm => {
+                                            const nextState = { ...prevForm, motionType: newMotionType };
+                                            if (newMotionType !== 'sub') {
+                                                nextState.parentMotionId = null;
+                                            }
+                                            return nextState;
+                                        });
+                                    }}
                                     className="form-select"
                                 >
                                     <option value="standard">Standard Motion</option>
@@ -953,7 +960,7 @@ export default function Committee() {
                                     <select
                                         value={form.parentMotionId || ''}
                                         onChange={e =>
-                                            setForm({ ...form, parentMotionId: e.target.value })
+                                            setForm(prevForm => ({ ...prevForm, parentMotionId: e.target.value }))
                                         }
                                         className="form-select"
                                     >
@@ -976,7 +983,7 @@ export default function Committee() {
                                     required
                                     placeholder="e.g., Approve Budget for Q2 2024"
                                     value={form.title}
-                                    onChange={e => setForm({ ...form, title: e.target.value })}
+                                    onChange={e => setForm(prevForm => ({ ...prevForm, title: e.target.value }))}
                                     className="form-input"
                                 />
                             </div>
@@ -988,7 +995,7 @@ export default function Committee() {
                                     placeholder="Provide a detailed description..."
                                     value={form.description}
                                     onChange={e =>
-                                        setForm({ ...form, description: e.target.value })
+                                        setForm(prevForm => ({ ...prevForm, description: e.target.value }))
                                     }
                                     className="form-textarea"
                                 />
@@ -1000,7 +1007,7 @@ export default function Committee() {
                                     <select
                                         value={form.voteThreshold}
                                         onChange={e =>
-                                            setForm({ ...form, voteThreshold: e.target.value })
+                                            setForm(prevForm => ({ ...prevForm, voteThreshold: e.target.value }))
                                         }
                                         className="form-select"
                                     >
@@ -1026,10 +1033,10 @@ export default function Committee() {
                                                     type="checkbox"
                                                     checked={form.secondRequired}
                                                     onChange={e =>
-                                                        setForm({
-                                                            ...form,
+                                                        setForm(prevForm => ({
+                                                            ...prevForm,
                                                             secondRequired: e.target.checked,
-                                                        })
+                                                        }))
                                                     }
                                                 />
                                                 <span className="switch-slider" />
@@ -1044,10 +1051,10 @@ export default function Committee() {
                                                     type="checkbox"
                                                     checked={form.allowAnonymous}
                                                     onChange={e =>
-                                                        setForm({
-                                                            ...form,
+                                                        setForm(prevForm => ({
+                                                            ...prevForm,
                                                             allowAnonymous: e.target.checked,
-                                                        })
+                                                        }))
                                                     }
                                                 />
                                                 <span className="switch-slider" />
