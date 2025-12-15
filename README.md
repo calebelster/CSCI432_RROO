@@ -79,7 +79,7 @@ The backend is built using Netlify Functions and Firebase.
 
 Most data is managed on the client-side via the Firebase SDK.
 
-This project uses Firebase Authentication and Cloud Firestore through a small wrapper layer, exposing high-level functions for auth and committee workflows that can be called from UI components or other modules.
+This project uses Firebase Authentication and Cloud Firestore through a wrapper layer in `src/firebase/`, exposing high-level functions for auth and committee workflows that can be called from UI components.
 
 ### Firebase Initialization
 
@@ -195,50 +195,150 @@ These helpers encapsulate Firestore reads/writes related to committees, membersh
 
 ## Database Structure
 
-The database is structured in Firebase Firestore.
+The database uses **Firebase Firestore**, a NoSQL document database organized into collections and subcollections with the following structure:
 
-### `committees` collection
-Each document in this collection represents a committee.
+### Database Schema
 
-- **`name`**: (string) The name of the committee.
-- **`description`**: (string) The description of the committee.
-- **`ownerUid`**: (string) The UID of the user who owns the committee.
-- **`inviteCode`**: (string) A unique code to invite members.
-- **`settings`**: (map) Committee settings.
-    - **`defaultVoteThreshold`**: (string) e.g., "Simple Majority"
-    - **`requireSecond`**: (boolean)
-    - **`allowAnonymousVoting`**: (boolean)
+```
+firestore (root)
+│
+├── users/ (collection)
+│   └── {uid}/ (document)
+│       ├── uid: string
+│       ├── displayName: string
+│       ├── email: string
+│       └── updatedAt: timestamp
+│
+└── committees/ (collection)
+    └── {committeeId}/ (document)
+        ├── name: string
+        ├── description: string
+        ├── ownerUid: string → references users/{uid}
+        ├── inviteCode: string (unique)
+        ├── createdAt: timestamp
+        ├── updatedAt: timestamp
+        ├── settings: map
+        │   ├── defaultVoteThreshold: string
+        │   ├── requireSecond: boolean
+        │   └── allowAnonymousVoting: boolean
+        │
+        ├── members/ (subcollection)
+        │   └── {userUid}/ (document) → references users/{uid}
+        │       ├── uid: string
+        │       ├── role: string ("owner" | "chair" | "member")
+        │       ├── displayName: string
+        │       ├── email: string
+        │       ├── joinedAt: timestamp
+        │       └── addedBy: string → references users/{uid}
+        │
+        ├── motions/ (subcollection)
+        │   └── {motionId}/ (document)
+        │       ├── title: string
+        │       ├── description: string
+        │       ├── type: string
+        │       ├── kind: string ("standard" | "sub" | "overturn" | "special")
+        │       ├── status: string ("active" | "closed" | "completed" | "denied" | "deleted")
+        │       ├── creatorUid: string → references users/{uid}
+        │       ├── creatorDisplayName: string
+        │       ├── createdAt: timestamp
+        │       ├── parentMotionId: string (optional) → references motions/{motionId}
+        │       ├── relatedTo: string (optional) → references motions/{motionId}
+        │       ├── tally: map
+        │       │   ├── yes: number
+        │       │   ├── no: number
+        │       │   └── abstain: number
+        │       ├── closedAt: timestamp (optional)
+        │       ├── approvedAt: timestamp (optional)
+        │       ├── deniedAt: timestamp (optional)
+        │       ├── decidedAt: timestamp (optional)
+        │       └── decisionId: string (optional) → references decisions/{decisionId}
+        │       │
+        │       ├── votes/ (subcollection)
+        │       │   └── {voterUid}/ (document) → references users/{uid}
+        │       │       ├── voterUid: string
+        │       │       ├── voterDisplayName: string (null if anonymous)
+        │       │       ├── choice: string ("yes" | "no" | "abstain")
+        │       │       ├── anonymous: boolean
+        │       │       ├── createdAt: timestamp
+        │       │       └── updatedAt: timestamp
+        │       │
+        │       └── replies/ (subcollection)
+        │           └── {replyId}/ (document)
+        │               ├── authorUid: string → references users/{uid}
+        │               ├── authorDisplayName: string
+        │               ├── text: string
+        │               ├── stance: string ("support" | "oppose" | "neutral")
+        │               └── createdAt: timestamp
+        │
+        └── decisions/ (subcollection)
+            └── {decisionId}/ (document)
+                ├── motionId: string → references motions/{motionId}
+                ├── summary: string
+                ├── pros: array<string>
+                ├── cons: array<string>
+                ├── discussionSnapshot: array<object>
+                ├── recordingUrl: string (optional)
+                ├── recordedBy: string → references users/{uid}
+                ├── recordedByName: string
+                └── createdAt: timestamp
+```
 
-#### `members` subcollection
-Each document represents a member of the committee. The document ID is the user's UID.
+### Table Relationships
 
-- **`role`**: (string) "owner", "chair", or "member"
-- **`joinedAt`**: (timestamp)
+#### **One-to-Many Relationships**
+1. **User → Committees** (as owner)
+   - `committees.ownerUid` → `users.uid`
+   - One user can own multiple committees
 
-#### `motions` subcollection
-Each document represents a motion.
+2. **Committee → Members**
+   - Parent: `committees/{committeeId}`
+   - Child: `committees/{committeeId}/members/{userUid}`
+   - One committee has many members
 
-- **`title`**: (string)
-- **`description`**: (string)
-- **`creatorUid`**: (string)
-- **`creatorDisplayName`**: (string)
-- **`createdAt`**: (timestamp)
-- **`status`**: (string) "active", "closed", "completed", "denied", "deleted"
-- **`kind`**: (string) "standard", "sub", "overturn", "special"
-- **`parentMotionId`**: (string) (for sub-motions) The ID of the parent motion.
-- **`relatedTo`**: (string) (for overturn motions) The ID of the motion to be overturned.
-- **`tally`**: (map)
-    - **`yes`**: (number)
-    - **`no`**: (number)
-    - **`abstain`**: (number)
+3. **Committee → Motions**
+   - Parent: `committees/{committeeId}`
+   - Child: `committees/{committeeId}/motions/{motionId}`
+   - One committee has many motions
 
-#### `decisions` subcollection
-Each document represents a recorded decision.
+4. **Motion → Votes**
+   - Parent: `committees/{committeeId}/motions/{motionId}`
+   - Child: `committees/{committeeId}/motions/{motionId}/votes/{voterUid}`
+   - One motion has many votes (one per member)
 
-- **`motionId`**: (string)
-- **`summary`**: (string)
-- **`pros`**: (array of strings)
-- **`cons`**: (array of strings)
-- **`recordingUrl`**: (string)
-- **`recordedBy`**: (string) UID of the user who recorded the decision.
-- **`createdAt`**: (timestamp)
+5. **Motion → Replies**
+   - Parent: `committees/{committeeId}/motions/{motionId}`
+   - Child: `committees/{committeeId}/motions/{motionId}/replies/{replyId}`
+   - One motion has many discussion replies
+
+6. **Committee → Decisions**
+   - Parent: `committees/{committeeId}`
+   - Child: `committees/{committeeId}/decisions/{decisionId}`
+   - One committee has many recorded decisions
+
+#### **One-to-One Relationships**
+1. **Motion → Decision**
+   - `motions.decisionId` → `decisions/{decisionId}`
+   - One motion can have one final decision recorded
+
+#### **Self-Referential Relationships**
+1. **Motion → Parent Motion** (for sub-motions)
+   - `motions.parentMotionId` → `motions/{motionId}`
+   - Sub-motions reference their parent motion
+
+2. **Motion → Related Motion** (for overturn motions)
+   - `motions.relatedTo` → `motions/{motionId}`
+   - Overturn motions reference the original motion being challenged
+
+### Data Integrity Constraints
+
+- **Unique Constraints**: 
+  - `committees.inviteCode` must be unique across all committees
+  - `users.uid` is unique (enforced by Firebase Auth)
+  
+- **Referential Integrity**: 
+  - Enforced at application level through Firebase Security Rules
+  - Firestore does not have built-in foreign key constraints
+  
+- **Cascade Behaviors**:
+  - Deleting a committee does NOT automatically delete subcollections (requires manual cleanup)
+  - Voting/reply operations use transactions to maintain data consistency
