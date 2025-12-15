@@ -467,34 +467,6 @@ export default function Motions() {
         }
     }
 
-    async function handleProposeOverturn(motion) {
-        const cid = resolveCommitteeId(motion.id);
-        if (!cid) {
-            alert('Committee ID not found');
-            return;
-        }
-        const title = window.prompt('Title for overturn motion:');
-        if (!title) return;
-        const description = window.prompt('Description for overturn motion:');
-        if (!description) return;
-
-        try {
-            await proposeOverturn(cid, motion.id, { title, description });
-            setActionMessage({
-                text: 'Overturn motion proposed successfully',
-                variant: 'success',
-            });
-            setTimeout(() => setActionMessage(null), 3500);
-        } catch (err) {
-            console.error('proposeOverturn failed', err);
-            setActionMessage({
-                text: err.message || 'Failed to propose overturn',
-                variant: 'error',
-            });
-            setTimeout(() => setActionMessage(null), 3500);
-        }
-    }
-
     async function handleSecondMotion(motionId) {
         try {
             setSeconding(prev => ({ ...prev, [motionId]: true }));
@@ -986,12 +958,6 @@ export default function Motions() {
                                         onClick={() => setShowRecordDecision(true)}
                                     >
                                         Record Decision Summary
-                                    </button>
-                                    <button
-                                        className="record-decision-btn"
-                                        onClick={() => handleProposeOverturn(motion)}
-                                    >
-                                        Propose Overturn
                                     </button>
                                 </div>
                             )}

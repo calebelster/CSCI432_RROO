@@ -120,9 +120,18 @@ service cloud.firestore {
         allow read: if isSignedIn()
           && isMember(committeeId, request.auth.uid);
 
+        // Allow members to create decisions (via recordDecision)
+        // Allow owner/chair to update/delete
+        // Allow system updates for overturn status (checked via fields)
         allow create, update, delete: if isSignedIn()
-          && (memberRole(committeeId, request.auth.uid) in ['owner', 'chair']);
-      }
+          && (memberRole(committeeId, request.auth.uid) in ['owner', 'chair'])
+          || (
+            // Allow updates that only modify overturn fields
+            request.method == 'update'
+            && request.resource.data.diff(resource.data)
+                 .affectedKeys()
+                 .hasOnly(['overturnMotionId', 'isOverturned', 'overturnedAt'])
+          );
     }
   }
 }
