@@ -329,6 +329,18 @@ export async function recordDecision(
     return decisionRef.id;
 }
 
+// Update decision with overturn result
+export async function updateDecisionOverturnStatus(committeeId, decisionId, overturnMotionId, isOverturned) {
+    if (!auth.currentUser) throw new Error("Not signed in");
+
+    const decisionRef = doc(db, "committees", committeeId, "decisions", decisionId);
+    await updateDoc(decisionRef, {
+        overturnMotionId,
+        isOverturned,
+        overturnedAt: isOverturned ? serverTimestamp() : null,
+    });
+}
+
 // Propose an overturn motion (only for users who voted 'yes' on original)
 export async function proposeOverturn(
     committeeId,
@@ -362,36 +374,41 @@ export async function proposeOverturn(
     });
 }
 
-// Deny a motion (owner/chair only)
 export async function denyMotion(committeeId, motionId) {
-    if (!auth.currentUser) throw new Error('Not signed in');
-
-    const committeeRef = doc(db, 'committees', committeeId);
+    if (!auth.currentUser) throw new Error("Not signed in");
+    const committeeRef = doc(db, "committees", committeeId);
     const committeeSnap = await getDoc(committeeRef);
     const committeeData = committeeSnap.data();
     const ownerUid = committeeData.ownerUid;
-
     // Check if current user is owner or chair
-    const memberRef = doc(
-        db,
-        'committees',
-        committeeId,
-        'members',
-        auth.currentUser.uid
-    );
+    const memberRef = doc(db, "committees", committeeId, "members", auth.currentUser.uid);
     const memberSnap = await getDoc(memberRef);
-    if (
-        !memberSnap.exists() ||
-        !['owner', 'chair'].includes(memberSnap.data().role)
-    ) {
-        throw new Error('Not authorized to deny this motion');
+    if (!memberSnap.exists() || !["owner", "chair"].includes(memberSnap.data().role)) {
+        throw new Error("Not authorized to deny this motion");
     }
 
-    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
-    await updateDoc(motionRef, {
-        status: 'denied',
-        deniedAt: serverTimestamp(),
-    });
+    // Check if this is an overturn motion
+    const motionRef = doc(db, "committees", committeeId, "motions", motionId);
+    const motionSnap = await getDoc(motionRef);
+
+    if (motionSnap.exists()) {
+        const motionData = motionSnap.data();
+
+        await updateDoc(motionRef, {
+            status: "denied",
+            deniedAt: serverTimestamp(),
+        });
+
+        // If it's an overturn motion, update the related decision (overturn failed)
+        if (motionData.kind === "overturn" && motionData.relatedDecisionId) {
+            await updateDecisionOverturnStatus(
+                committeeId,
+                motionData.relatedDecisionId,
+                motionId,
+                false
+            );
+        }
+    }
 
     return true;
 }
@@ -548,25 +565,18 @@ export async function joinCommitteeByCode(rawCode) {
     return { committeeId, committeeName: data.name || '' };
 }
 
-/**
- * Create a motion with support for kind (standard/overturn/sub/special).
- */
 export async function createMotion(committeeId, motionPayload) {
     const user = auth.currentUser;
-    if (!user || !user.uid) {
-        throw new Error('Not signed in');
-    }
-
-    const motionsCol = collection(db, 'committees', committeeId, 'motions');
+    if (!user || !user.uid) throw new Error("Not signed in");
+    const motionsCol = collection(db, "committees", committeeId, "motions");
     const ref = await addDoc(motionsCol, {
         ...motionPayload,
         creatorUid: user.uid,
-        creatorDisplayName: user.displayName || user.email || '',
+        creatorDisplayName: user.displayName || user.email,
         createdAt: serverTimestamp(),
-        status: 'active',
+        status: "active",
         tally: { yes: 0, no: 0, abstain: 0 },
     });
-
     return ref.id;
 }
 
@@ -599,11 +609,28 @@ export async function deleteCommittee(committeeId) {
 }
 
 export async function approveMotion(committeeId, motionId) {
-    const motionRef = doc(db, 'committees', committeeId, 'motions', motionId);
-    await updateDoc(motionRef, {
-        status: 'completed',
-        approvedAt: serverTimestamp(),
-    });
+    const motionRef = doc(db, "committees", committeeId, "motions", motionId);
+
+    // Check if this is an overturn motion
+    const motionSnap = await getDoc(motionRef);
+    if (motionSnap.exists()) {
+        const motionData = motionSnap.data();
+
+        await updateDoc(motionRef, {
+            status: "completed",
+            approvedAt: serverTimestamp(),
+        });
+
+        // If it's an overturn motion, update the related decision
+        if (motionData.kind === "overturn" && motionData.relatedDecisionId) {
+            await updateDecisionOverturnStatus(
+                committeeId,
+                motionData.relatedDecisionId,
+                motionId,
+                true
+            );
+        }
+    }
 }
 
 export async function closeMotionVoting(committeeId, motionId) {

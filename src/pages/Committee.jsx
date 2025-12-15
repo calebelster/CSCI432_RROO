@@ -470,6 +470,39 @@ export default function Committee() {
         }
     }
 
+    async function handleProposeOverturn(decision) {
+        if (!committeeObj?.id) return;
+
+        const title = `Motion to Overturn: ${decision.summary || `Decision ${decision.id.slice(0, 8)}`}`;
+        const description = `This motion seeks to overturn the decision made on ${decision.createdAt}.`;
+
+        setCreatingMotion(true);
+        try {
+            const motionPayload = {
+                title,
+                description,
+                type: "Overturn Motion",
+                kind: "overturn",
+                threshold: "Simple Majority",
+                anonymousVotes: false,
+                requiresDiscussion: true,
+                secondRequired: true,
+                allowAnonymous: false,
+                relatedDecisionId: decision.id,
+            };
+
+            await createMotion(committeeObj.id, motionPayload);
+            alert("Overturn motion created successfully");
+            setActiveTab("motions");
+            setMotionFilter("active");
+        } catch (err) {
+            console.error("Failed to create overturn motion", err);
+            alert(err.message || "Failed to create overturn motion");
+        } finally {
+            setCreatingMotion(false);
+        }
+    }
+
     function performDelete() {
         // perform actual deletion of committee from Firestore
         (async () => {
@@ -494,6 +527,9 @@ export default function Committee() {
             m => m.uid === currentUser.uid && m.role === 'chair'
         );
     const isOwnerOrChair = isCommitteeOwner || isChair;
+    const isCommitteeMember = currentUser && committeeData.members?.some(
+        (m) => m.uid === currentUser.uid
+    );
 
     async function handleRegenerateCode() {
         if (!committeeObj?.id) return;
@@ -809,28 +845,44 @@ export default function Committee() {
                     </div>
                 )}
 
-                {activeTab === 'decisions' && (
+                {activeTab === "decisions" && (
                     <div className="decisions-section">
                         <div className="decisions-header">Recorded Decisions</div>
                         <div className="decisions-list">
-                            {(committeeData.decisions || []).length === 0 ? (
-                                <div className="no-decisions">
-                                    No decisions recorded yet.
-                                </div>
+                            {committeeData.decisions?.length === 0 ? (
+                                <div className="no-decisions">No decisions recorded yet.</div>
                             ) : (
-                                (committeeData.decisions || []).map(decision => {
-                                    const relatedMotion = (committeeData.motions || []).find(
-                                        m => m.id === decision.motionId
+                                committeeData.decisions?.map((decision) => {
+                                    const relatedMotion = committeeData.motions?.find(
+                                        (m) => m.id === decision.motionId
                                     );
+
+                                    // Check the decision's own overturn fields (set by updateDecisionOverturnStatus)
+                                    const isOverturned = decision.isOverturned === true;
+                                    const isFailed = decision.isOverturned === false && decision.overturnMotionId;
+
+                                    // Find any overturn motions for this decision
+                                    const overturnMotions = committeeData.motions?.filter(
+                                        (m) => m.kind === "overturn" && m.relatedDecisionId === decision.id
+                                    );
+
+                                    // Check for pending overturn (not yet decided)
+                                    const pendingOverturn = overturnMotions?.find(
+                                        (m) => (m.status === "active" || m.status === "closed") && !decision.overturnMotionId
+                                    );
+
                                     return (
                                         <div key={decision.id} className="decision-card">
                                             <div className="decision-header">
-                                                <h3>
-                                                    {relatedMotion?.name ||
-                                                        `Motion ${decision.motionId}`}
-                                                </h3>
-                                                <div className="decision-date">
-                                                    {decision.createdAt}
+                                                <h3>{relatedMotion?.name || `Motion ${decision.motionId}`}</h3>
+                                                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                                    {isOverturned && (
+                                                        <span className="motion-badge overturn">OVERTURNED</span>
+                                                    )}
+                                                    {isFailed && (
+                                                        <span className="motion-badge" style={{ background: "rgba(16, 185, 129, 0.2)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.5)" }}>UPHELD</span>
+                                                    )}
+                                                    <div className="decision-date">{decision.createdAt}</div>
                                                 </div>
                                             </div>
                                             <div className="decision-meta">
@@ -838,13 +890,13 @@ export default function Committee() {
                                             </div>
                                             {decision.summary && (
                                                 <div className="decision-summary">
-                                                    <strong>Summary:</strong>
+                                                    <strong>Summary</strong>
                                                     <p>{decision.summary}</p>
                                                 </div>
                                             )}
                                             {decision.pros && decision.pros.length > 0 && (
                                                 <div className="decision-pros">
-                                                    <strong>Pros:</strong>
+                                                    <strong>Pros</strong>
                                                     <ul>
                                                         {decision.pros.map((pro, i) => (
                                                             <li key={i}>{pro}</li>
@@ -854,7 +906,7 @@ export default function Committee() {
                                             )}
                                             {decision.cons && decision.cons.length > 0 && (
                                                 <div className="decision-cons">
-                                                    <strong>Cons:</strong>
+                                                    <strong>Cons</strong>
                                                     <ul>
                                                         {decision.cons.map((con, i) => (
                                                             <li key={i}>{con}</li>
@@ -863,25 +915,27 @@ export default function Committee() {
                                                 </div>
                                             )}
                                             {decision.discussionSnapshot &&
-                                                    decision.discussionSnapshot &&
-                                                    decision.discussionSnapshot.length > 0 && (
-                                                        <div className="decision-discussion">
-                                                            <strong>
-                                                                Discussion ({decision.discussionSnapshot.length} comments)
-                                                            </strong>
-                                                            <ul className="discussion-list">
-                                                                {decision.discussionSnapshot.map((c, i) => (
-                                                                    <li key={i}>
+                                                decision.discussionSnapshot &&
+                                                decision.discussionSnapshot.length > 0 && (
+                                                    <div className="decision-discussion">
+                                                        <strong>Discussion ({decision.discussionSnapshot.length} comments)</strong>
+                                                        <ul className="discussion-list">
+                                                            {decision.discussionSnapshot.map((c, i) => (
+                                                                <li key={i}>
+                                                                    <div>
                                                                         <div className="discussion-author">
-                                                                            {c.authorDisplayName || c.authorUid || 'Member'}
-                                                                            <span className="discussion-date">{c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}</span>
+                                                                            {c.authorDisplayName || c.authorUid || "Member"}
+                                                                            {c.createdAt && (
+                                                                                <span className="discussion-date">{c.createdAt ? new Date(c.createdAt).toLocaleString(): ""}</span>
+                                                                            )}
                                                                         </div>
                                                                         <div className="discussion-text">{c.text}</div>
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
-                                                        </div>
-                                                    )}
+                                                                    </div>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
                                             {decision.recordingUrl && (
                                                 <div className="decision-recording">
                                                     <a
@@ -891,6 +945,73 @@ export default function Committee() {
                                                     >
                                                         View Recording
                                                     </a>
+                                                </div>
+                                            )}
+
+                                            {/* Overturn status messages */}
+                                            {isOverturned && (
+                                                <div className="decision-overturn-status" style={{
+                                                    marginTop: "12px",
+                                                    padding: "12px",
+                                                    background: "rgba(244, 67, 54, 0.1)",
+                                                    border: "1px solid rgba(244, 67, 54, 0.3)",
+                                                    borderRadius: "8px",
+                                                    color: "#c62828"
+                                                }}>
+                                                    <strong>⚠️ This decision has been overturned</strong>
+                                                    <p style={{ margin: "4px 0 0 0", fontSize: "0.9rem" }}>
+                                                        An overturn motion was approved. This decision is no longer in effect.
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {isFailed && (
+                                                <div className="decision-overturn-status" style={{
+                                                    marginTop: "12px",
+                                                    padding: "12px",
+                                                    background: "rgba(16, 185, 129, 0.1)",
+                                                    border: "1px solid rgba(16, 185, 129, 0.3)",
+                                                    borderRadius: "8px",
+                                                    color: "#047857"
+                                                }}>
+                                                    <strong>✓ Decision upheld</strong>
+                                                    <p style={{ margin: "4px 0 0 0", fontSize: "0.9rem" }}>
+                                                        A motion to overturn was denied. This decision remains in effect.
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* Overturn button - hidden if overturned, failed, or pending */}
+                                            {isCommitteeMember && !isOverturned && !isFailed && !pendingOverturn && (
+                                                <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid var(--border-color)" }}>
+                                                    <button
+                                                        className="record-decision-btn"
+                                                        onClick={() => handleProposeOverturn(decision)}
+                                                        disabled={creatingMotion}
+                                                        style={{
+                                                            background: "rgba(244, 67, 54, 0.15)",
+                                                            color: "#c62828",
+                                                            border: "1px solid rgba(244, 67, 54, 0.3)"
+                                                        }}
+                                                    >
+                                                        {creatingMotion ? "Creating..." : "Propose Overturn"}
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {pendingOverturn && (
+                                                <div className="decision-overturn-status" style={{
+                                                    marginTop: "12px",
+                                                    padding: "12px",
+                                                    background: "rgba(59, 130, 246, 0.1)",
+                                                    border: "1px solid rgba(59, 130, 246, 0.3)",
+                                                    borderRadius: "8px",
+                                                    color: "#1e40af"
+                                                }}>
+                                                    <strong>🔄 Overturn motion pending</strong>
+                                                    <p style={{ margin: "4px 0 0 0", fontSize: "0.9rem" }}>
+                                                        A motion to overturn this decision is currently being voted on.
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>
@@ -931,13 +1052,11 @@ export default function Committee() {
                                 <label className="form-label">Motion Type</label>
                                 <select
                                     value={form.motionType}
-                                    onChange={e => {
+                                    onChange={(e) => {
                                         const newMotionType = e.target.value;
-                                        setForm(prevForm => {
+                                        setForm((prevForm) => {
                                             const nextState = { ...prevForm, motionType: newMotionType };
-                                            if (newMotionType !== 'sub') {
-                                                nextState.parentMotionId = null;
-                                            }
+                                            if (newMotionType !== "sub") nextState.parentMotionId = null;
                                             return nextState;
                                         });
                                     }}
@@ -945,12 +1064,7 @@ export default function Committee() {
                                 >
                                     <option value="standard">Standard Motion</option>
                                     <option value="sub">Sub-Motion (Revision/Postpone)</option>
-                                    <option value="overturn">
-                                        Motion to Overturn Previous Decision
-                                    </option>
-                                    <option value="special">
-                                        Special Motion (No Discussion)
-                                    </option>
+                                    <option value="special">Special Motion (No Discussion)</option>
                                 </select>
                             </div>
 
