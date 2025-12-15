@@ -17,6 +17,7 @@ The application is hosted on Netlify and can be accessed here:
 ## Features
 
 ### Committees
+
 - Create and manage committees for different groups.
 - Each committee has its own set of members, motions, and decisions.
 - Invite members to a committee using a unique invite code.
@@ -24,6 +25,7 @@ The application is hosted on Netlify and can be accessed here:
 ![Committee Page](public/commiteepage.png)
 
 ### Motions
+
 - Create, view, and manage motions within a committee.
 - Support for different types of motions: standard, sub-motions, special motions, and motions to overturn.
 - Members can vote on active motions.
@@ -32,18 +34,21 @@ The application is hosted on Netlify and can be accessed here:
 ![Motions List](public/motions.png)
 
 ### Members
+
 - View a list of all members in a committee.
 - Committee owners and chairs can manage member roles (owner, chair, member).
 
 ![Members List](public/members.png)
 
 ### Decisions
+
 - Record final decisions for motions that have been completed.
 - Include a summary, pros, cons, and a link to a recording.
 
 ![Decisions List](public/decisions.png)
 
 ### Settings
+
 - Committee owners and chairs can configure committee settings, such as default voting thresholds and whether a "second" is required for motions.
 
 ![Committee Settings](public/settings.png)
@@ -55,27 +60,27 @@ The backend is built using Netlify Functions and Firebase.
 ### `/.netlify/functions/users`
 
 - **`GET /`**: Lists all users.
-    - **Response:** `200 OK`
-    ```json
-    [
-        {
-            "uid": "...",
-            "displayName": "...",
-            "email": "..."
-        }
-    ]
-    ```
-- **`GET /?id=<userId>`**: Fetches a single user by ID.
-    - **Response:** `200 OK`
-    ```json
+  - **Response:** `200 OK`
+  ```json
+  [
     {
-        "uid": "...",
-        "displayName": "...",
-        "email": "..."
+      "uid": "...",
+      "displayName": "...",
+      "email": "..."
     }
-    ```
+  ]
+  ```
+- **`GET /?id=<userId>`**: Fetches a single user by ID.
+  - **Response:** `200 OK`
+  ```json
+  {
+    "uid": "...",
+    "displayName": "...",
+    "email": "..."
+  }
+  ```
 - **`DELETE /?id=<userId>`**: Deletes a user (owner only).
-    - **Response:** `204 No Content`
+  - **Response:** `204 No Content`
 
 Most data is managed on the client-side via the Firebase SDK.
 
@@ -85,17 +90,17 @@ This project uses Firebase Authentication and Cloud Firestore through a wrapper 
 
 ```js
 // src/firebase/firebase.js
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: '...',
-  authDomain: '...',
-  projectId: '...',
-  storageBucket: '...',
-  messagingSenderId: '...',
-  appId: '...',
+  apiKey: "...",
+  authDomain: "...",
+  projectId: "...",
+  storageBucket: "...",
+  messagingSenderId: "...",
+  appId: "...",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -174,6 +179,9 @@ These helpers encapsulate Firestore reads/writes related to committees, membersh
 - `replyToMotion(committeeId, motionId, { text, stance = 'neutral' })`  
   Adds a reply to `committees/{committeeId}/motions/{motionId}/replies` with author identifiers, the text, stance, and `createdAt` timestamp.
 
+- `secondMotion(committeeId, motionId)`  
+  If a motion requires a second (either the motion field `secondRequired` or the committee setting `settings.requireSecond`/`settings.secondRequired`), discussion and voting are blocked until another committee member seconds the motion. Calling `secondMotion` sets `seconded: true`, `secondedBy`, and `secondedAt` on the motion document. Motion creators cannot second their own motions; both client and server enforce this rule.
+
 - `castVote(committeeId, motionId, { choice, anonymous = false })`  
   Uses a Firestore transaction to create or update the current user’s vote at `.../votes/{uid}`, maintain the motion’s `tally` counts (handling vote changes and no-op when unchanged), and store `voterUid`, optional `voterDisplayName` (null when anonymous), `choice`, `anonymous`, and timestamps.
 
@@ -191,7 +199,6 @@ These helpers encapsulate Firestore reads/writes related to committees, membersh
 
 - `denyMotion(committeeId, motionId)`  
   Verifies that the current user is an `owner` or `chair` in `committees/{committeeId}/members`, then updates the motion to `status: 'denied'` and sets `deniedAt`. Throws an error if the user is not authorized.
-
 
 ## Database Structure
 
@@ -286,26 +293,32 @@ firestore (root)
 ### Table Relationships
 
 #### **One-to-Many Relationships**
+
 1. **User → Committees** (as owner)
+
    - `committees.ownerUid` → `users.uid`
    - One user can own multiple committees
 
 2. **Committee → Members**
+
    - Parent: `committees/{committeeId}`
    - Child: `committees/{committeeId}/members/{userUid}`
    - One committee has many members
 
 3. **Committee → Motions**
+
    - Parent: `committees/{committeeId}`
    - Child: `committees/{committeeId}/motions/{motionId}`
    - One committee has many motions
 
 4. **Motion → Votes**
+
    - Parent: `committees/{committeeId}/motions/{motionId}`
    - Child: `committees/{committeeId}/motions/{motionId}/votes/{voterUid}`
    - One motion has many votes (one per member)
 
 5. **Motion → Replies**
+
    - Parent: `committees/{committeeId}/motions/{motionId}`
    - Child: `committees/{committeeId}/motions/{motionId}/replies/{replyId}`
    - One motion has many discussion replies
@@ -316,12 +329,15 @@ firestore (root)
    - One committee has many recorded decisions
 
 #### **One-to-One Relationships**
+
 1. **Motion → Decision**
    - `motions.decisionId` → `decisions/{decisionId}`
    - One motion can have one final decision recorded
 
 #### **Self-Referential Relationships**
+
 1. **Motion → Parent Motion** (for sub-motions)
+
    - `motions.parentMotionId` → `motions/{motionId}`
    - Sub-motions reference their parent motion
 
@@ -331,14 +347,12 @@ firestore (root)
 
 ### Data Integrity Constraints
 
-- **Unique Constraints**: 
+- **Unique Constraints**:
   - `committees.inviteCode` must be unique across all committees
   - `users.uid` is unique (enforced by Firebase Auth)
-  
-- **Referential Integrity**: 
+- **Referential Integrity**:
   - Enforced at application level through Firebase Security Rules
   - Firestore does not have built-in foreign key constraints
-  
 - **Cascade Behaviors**:
   - Deleting a committee does NOT automatically delete subcollections (requires manual cleanup)
   - Voting/reply operations use transactions to maintain data consistency
