@@ -6,7 +6,7 @@ This web application is designed to facilitate parliamentary procedures based on
 
 ## Video Demo
 
-[Link to Demo Video](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+[Link to Demo Video](https://youtu.be/B7jsHDoBw-Y)
 
 ## Live Website
 
